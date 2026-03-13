@@ -1,80 +1,200 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get Black Michi Studio up and running in minutes
 ---
 
-## Get started in three steps
+Get your Black Michi Studio e-commerce platform running in just a few steps. Choose the deployment method that works best for you.
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
+## Choose Your Setup Method
 
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Docker (Recommended)" icon="docker" href="/deployment/docker">
+    Fastest way to get started with one command
+  </Card>
+  <Card title="Local Development" icon="laptop-code" href="/deployment/local-setup">
+    Set up a full development environment
+  </Card>
 </CardGroup>
 
+## Quick Setup with Docker
+
+The fastest way to get Black Michi Studio running is with Docker Compose:
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/FranciscoDastres/blackMichiEstudioPreProd.git
+    cd blackMichiEstudioPreProd
+    ```
+  </Step>
+
+  <Step title="Start all services">
+    ```bash
+    docker-compose up -d
+    ```
+    
+    This will start:
+    - PostgreSQL database
+    - Backend API (Node.js/Express)
+    - Frontend (React/Vite)
+    - Nginx reverse proxy
+  </Step>
+
+  <Step title="Access the platform">
+    Open your browser and navigate to:
+    - **Frontend**: http://localhost
+    - **Backend API**: http://localhost/api
+    - **Health Check**: http://localhost/api/health
+  </Step>
+</Steps>
+
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Docker Compose automatically sets up the database schema and all required services with proper networking.
+</Note>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Explore Architecture" icon="sitemap" href="/architecture">
+    Understand the full-stack architecture
+  </Card>
+  <Card title="User Guide" icon="book-open" href="/user-guide/shopping">
+    Learn how to use the platform
+  </Card>
+  <Card title="Admin Dashboard" icon="user-shield" href="/admin/dashboard">
+    Manage your store
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/authentication">
+    Integrate with the API
+  </Card>
+</CardGroup>
+
+## Initial Configuration
+
+### Create Admin Account
+
+After starting the platform, you'll need to create an admin account:
+
+<Steps>
+  <Step title="Register a user account">
+    Navigate to the registration page and create a new account.
+  </Step>
+
+  <Step title="Update user role to admin">
+    Connect to the database and update the user role:
+    
+    ```sql
+    UPDATE usuarios SET rol = 'admin' WHERE email = 'your-email@example.com';
+    ```
+  </Step>
+
+  <Step title="Log in with admin privileges">
+    Log out and log back in to access the admin dashboard.
+  </Step>
+</Steps>
+
+### Configure Environment Variables
+
+For production deployments, you'll need to configure environment variables:
+
+**Backend** (`.env` in `backend/` directory):
+```bash
+# Database
+DATABASE_URL=postgresql://user:password@host:5432/database
+
+# JWT
+JWT_SECRET=your-secret-key-here
+
+# Flow Payment Gateway
+FLOW_API_KEY=your-flow-api-key
+FLOW_SECRET_KEY=your-flow-secret-key
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Supabase Storage
+SUPABASE_URL=your-supabase-url
+SUPABASE_KEY=your-supabase-key
+```
+
+**Frontend** (`.env` in `frontend/` directory):
+```bash
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+<Warning>
+  Never commit `.env` files to version control. Use `.env.example` as a template.
+</Warning>
+
+## Verify Installation
+
+Check that everything is working:
+
+<Steps>
+  <Step title="Check backend health">
+    ```bash
+    curl http://localhost:3000/health
+    ```
+    
+    You should see:
+    ```json
+    {
+      "status": "healthy",
+      "timestamp": "2026-03-13T...",
+      "uptime": 123
+    }
+    ```
+  </Step>
+
+  <Step title="Test product API">
+    ```bash
+    curl http://localhost:3000/api/productos
+    ```
+    
+    Returns a list of products (may be empty initially).
+  </Step>
+
+  <Step title="Access frontend">
+    Open http://localhost in your browser and verify the homepage loads.
+  </Step>
+</Steps>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Port 80 already in use">
+    If port 80 is already in use, edit `docker-compose.yml` and change the nginx port mapping:
+    
+    ```yaml
+    ports:
+      - "8080:80"  # Change from 80:80
+    ```
+    
+    Then access the site at http://localhost:8080
+  </Accordion>
+
+  <Accordion title="Database connection failed">
+    Make sure PostgreSQL is running and the credentials in your `.env` match your database configuration.
+  </Accordion>
+
+  <Accordion title="CORS errors in browser console">
+    Ensure `VITE_API_BASE_URL` in the frontend `.env` matches your backend URL, and that the backend CORS configuration allows your frontend origin.
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment
+
+For production deployment, see our detailed guides:
+
+- [Deploy to Render](/deployment/render) - Cloud deployment with managed PostgreSQL
+- [Docker Production Setup](/deployment/docker) - Self-hosted with Docker Compose
+
+<Note>
+  For production, make sure to:
+  - Use strong JWT secrets
+  - Enable HTTPS/TLS
+  - Configure proper CORS origins
+  - Set up database backups
+  - Use environment-specific configuration
 </Note>

@@ -1,0 +1,495 @@
+---
+title: 'Docker Compose Deployment'
+description: 'Deploy Black Michi Studio using Docker Compose for containerized environments'
+---
+
+## Overview
+
+The Docker Compose setup includes four services:
+
+- **Frontend:** React/Vite application served by Nginx
+- **Backend:** Node.js Express API server
+- **Database:** PostgreSQL 16 with persistent storage
+- **Nginx:** Reverse proxy for routing requests
+
+## Prerequisites
+
+Ensure you have installed:
+
+- **Docker** 20.10 or higher
+- **Docker Compose** v2.0 or higher
+
+```bash
+docker --version
+docker-compose --version
+```
+
+## Project Structure
+
+The Docker setup uses the following structure:
+
+```
+.
+├── docker-compose.yml
+├── frontend/
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── ...
+├── backend/
+│   ├── Dockerfile
+│   └── ...
+└── nginx/
+    └── nginx.conf
+```
+
+## Docker Compose Configuration
+
+The `docker-compose.yml` defines the complete stack:
+
+```yaml docker-compose.yml
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=blackmichiestudio
+      - DB_USER=postgres
+      - DB_PASSWORD=hola123
+    expose:
+      - "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: blackmichiestudio
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: hola123
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blackmichiestudio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - app-net
+
+  nginx:
+    image: nginx:stable-alpine
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    networks:
+      - app-net
+
+networks:
+  app-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+```
+
+## Dockerfile Details
+
+### Backend Dockerfile
+
+The backend uses a multi-stage build to optimize image size:
+
+```dockerfile backend/Dockerfile
+# Stage 1: Build dependencies
+FROM node:20-alpine AS builder
+
+# Install build tools for native modules (sharp)
+RUN apk add --no-cache python3 make g++
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Stage 2: Production runtime
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install runtime libraries for sharp
+RUN apk add --no-cache vips-dev
+
+COPY --from=builder /app/node_modules ./node_modules
+COPY . .
+
+EXPOSE 10000
+
+CMD ["node", "index.js"]
+```
+
+<Warning>
+  The backend requires `vips-dev` for the `sharp` image processing library. Without it, image uploads will fail.
+</Warning>
+
+### Frontend Dockerfile
+
+The frontend also uses multi-stage builds:
+
+```dockerfile frontend/Dockerfile
+# Stage 1: Build Vite application
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+# Stage 2: Serve with Nginx
+FROM nginx:stable-alpine AS runtime
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+## Deployment Steps
+
+<Steps>
+  <Step title="Configure environment variables">
+    <Warning>
+      **Important:** Change default passwords before deploying to production!
+    </Warning>
+
+    Edit the `docker-compose.yml` to update:
+
+    ```yaml
+    backend:
+      environment:
+        - DB_PASSWORD=your_secure_password
+        - JWT_SECRET=your_jwt_secret
+        # Add other production variables
+
+    db:
+      environment:
+        POSTGRES_PASSWORD: your_secure_password
+    ```
+
+    For sensitive values, use a `.env` file:
+
+    ```bash .env
+    DB_PASSWORD=your_secure_password
+    JWT_SECRET=your_jwt_secret
+    GOOGLE_CLIENT_ID=your_client_id
+    GOOGLE_CLIENT_SECRET=your_client_secret
+    SUPABASE_URL=your_supabase_url
+    SUPABASE_KEY=your_supabase_key
+    FLOW_API_KEY=your_flow_api_key
+    ```
+
+    Then reference in `docker-compose.yml`:
+
+    ```yaml
+    backend:
+      environment:
+        - DB_PASSWORD=${DB_PASSWORD}
+        - JWT_SECRET=${JWT_SECRET}
+    ```
+  </Step>
+
+  <Step title="Build the containers">
+    Build all services:
+
+    ```bash
+    docker-compose build
+    ```
+
+    This will:
+    - Build the frontend with Vite
+    - Build the backend with npm dependencies
+    - Pull the PostgreSQL and Nginx images
+  </Step>
+
+  <Step title="Start the services">
+    Start all containers in detached mode:
+
+    ```bash
+    docker-compose up -d
+    ```
+
+    Check the status:
+
+    ```bash
+    docker-compose ps
+    ```
+
+    You should see all services running:
+    ```
+    NAME                IMAGE                     STATUS
+    frontend            blackmichi-frontend       Up
+    backend             blackmichi-backend        Up
+    db                  postgres:16-alpine        Up (healthy)
+    nginx               nginx:stable-alpine       Up
+    ```
+  </Step>
+
+  <Step title="Verify deployment">
+    Check the logs for each service:
+
+    ```bash
+    # All services
+    docker-compose logs -f
+
+    # Specific service
+    docker-compose logs -f backend
+    ```
+
+    Test the health endpoint:
+
+    ```bash
+    curl http://localhost/api/health
+    ```
+
+    Access the application at `http://localhost`.
+  </Step>
+</Steps>
+
+## Nginx Configuration
+
+The Nginx reverse proxy routes traffic:
+
+```nginx nginx/nginx.conf
+events {}
+
+http {
+  upstream frontend_upstream {
+    server frontend:80;
+  }
+
+  upstream backend_upstream {
+    server backend:3000;
+  }
+
+  server {
+    listen 80;
+
+    # Frontend SPA
+    location / {
+      proxy_pass http://frontend_upstream;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_buffering on;
+      proxy_buffers 8 32k;
+      proxy_busy_buffers_size 64k;
+    }
+
+    # API requests to backend
+    location /api/ {
+      proxy_pass http://backend_upstream;
+      proxy_set_header Host $host;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_read_timeout 60s;
+    }
+  }
+}
+```
+
+## Database Persistence
+
+The PostgreSQL data is persisted using Docker volumes:
+
+```yaml
+volumes:
+  pgdata:
+```
+
+This ensures your data survives container restarts. To inspect the volume:
+
+```bash
+docker volume inspect blackmichiestudio_pgdata
+```
+
+## Common Operations
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f backend
+
+# Last 100 lines
+docker-compose logs --tail=100
+```
+
+### Restart Services
+
+```bash
+# Restart all
+docker-compose restart
+
+# Restart specific service
+docker-compose restart backend
+```
+
+### Stop and Remove
+
+```bash
+# Stop services
+docker-compose stop
+
+# Stop and remove containers
+docker-compose down
+
+# Remove containers and volumes (⚠️ deletes database)
+docker-compose down -v
+```
+
+### Access Container Shell
+
+```bash
+# Backend container
+docker-compose exec backend sh
+
+# Database container
+docker-compose exec db psql -U postgres -d blackmichiestudio
+```
+
+### Rebuild After Changes
+
+```bash
+# Rebuild specific service
+docker-compose build backend
+
+# Rebuild and restart
+docker-compose up -d --build backend
+```
+
+## Troubleshooting
+
+### Backend Can't Connect to Database
+
+**Symptoms:** Backend logs show `❌ Error inesperado en PostgreSQL`
+
+**Solutions:**
+- Check database health: `docker-compose ps db`
+- Verify environment variables match between backend and db services
+- Check database logs: `docker-compose logs db`
+- Ensure `depends_on` with `service_healthy` is configured
+
+### Port 80 Already in Use
+
+**Error:** `bind: address already in use`
+
+**Solutions:**
+- Check what's using port 80: `lsof -i :80`
+- Change the port mapping in `docker-compose.yml`:
+  ```yaml
+  nginx:
+    ports:
+      - "8080:80"  # Use port 8080 instead
+  ```
+
+### Frontend Not Loading
+
+**Symptoms:** Blank page or 404 errors
+
+**Solutions:**
+- Check frontend build succeeded: `docker-compose logs frontend`
+- Verify nginx configuration is correct
+- Rebuild frontend: `docker-compose build frontend`
+- Check nginx logs: `docker-compose logs nginx`
+
+### Image Build Fails for Backend
+
+**Error:** Issues installing `sharp` or native modules
+
+**Solutions:**
+- Ensure `python3 make g++` are installed in build stage
+- Ensure `vips-dev` is installed in runtime stage
+- Clear Docker cache: `docker-compose build --no-cache backend`
+
+### Database Data Lost After Restart
+
+**Cause:** Volume not properly configured
+
+**Solutions:**
+- Verify volume is defined in `docker-compose.yml`
+- Check volume exists: `docker volume ls`
+- Never use `docker-compose down -v` unless you want to delete data
+
+## Production Considerations
+
+<Warning>
+  **Security Checklist for Production:**
+  
+  - Change all default passwords
+  - Use `.env` file for secrets (add to `.gitignore`)
+  - Enable HTTPS with SSL certificates
+  - Configure firewall rules
+  - Set `NODE_ENV=production` for backend
+  - Implement database backups
+  - Use Docker secrets for sensitive data
+</Warning>
+
+### Enable HTTPS
+
+To enable HTTPS, update the nginx service:
+
+```yaml
+nginx:
+  ports:
+    - "80:80"
+    - "443:443"
+  volumes:
+    - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    - ./ssl/cert.pem:/etc/nginx/ssl/cert.pem:ro
+    - ./ssl/key.pem:/etc/nginx/ssl/key.pem:ro
+```
+
+And update `nginx.conf` to include SSL configuration.
+
+### Database Backups
+
+Create automated backups:
+
+```bash
+# Backup database
+docker-compose exec db pg_dump -U postgres blackmichiestudio > backup.sql
+
+# Restore database
+cat backup.sql | docker-compose exec -T db psql -U postgres blackmichiestudio
+```
+
+## Next Steps
+
+- [Deploy to Render](/deployment/render)
+- [Local Setup Guide](/deployment/local-setup)
+- [API Reference](/api/authentication)

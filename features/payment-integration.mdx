@@ -1,0 +1,661 @@
+---
+title: Payment Integration
+description: Flow payment gateway integration for secure Chilean peso transactions
+---
+
+Black Michi Studio uses Flow as its payment gateway to process transactions in Chilean pesos (CLP). The integration includes order creation, payment processing, webhook handling, and automatic stock management.
+
+## Overview
+
+Flow is a popular Chilean payment gateway that supports multiple payment methods including credit cards, debit cards, and bank transfers. The integration follows a standard payment flow with webhook notifications for payment confirmation.
+
+<Card title="Flow Integration Features" icon="credit-card">
+  - Secure payment processing with Flow API
+  - Automatic order creation and tracking
+  - Real-time payment status updates via webhooks
+  - Automatic stock deduction on successful payment
+  - Support for guest and registered user checkouts
+  - Payment status tracking and history
+  - Comprehensive webhook logging
+</Card>
+
+## Database Schema
+
+### Orders Table (Pedidos)
+
+The orders table stores all purchase information along with Flow payment data:
+
+```sql
+CREATE TABLE pedidos (
+  id SERIAL PRIMARY KEY,
+  
+  -- Usuario (puede ser NULL para compras sin registro)
+  usuario_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+  
+  -- Datos del comprador (obligatorios incluso sin usuario registrado)
+  comprador_nombre VARCHAR(255) NOT NULL,
+  comprador_email VARCHAR(255) NOT NULL,
+  comprador_telefono VARCHAR(20),
+  
+  -- Dirección de envío
+  direccion_envio TEXT NOT NULL,
+  
+  -- Datos del pedido
+  total DECIMAL(10,2) NOT NULL,
+  costo_envio DECIMAL(10,2) DEFAULT 3500,
+  notas TEXT,
+  
+  -- Estados del pedido
+  estado VARCHAR(30) DEFAULT 'pendiente' CHECK (
+    estado IN (
+      'pendiente',      -- Creado, esperando pago
+      'pagado',         -- Pago confirmado
+      'confirmado',     -- Pedido confirmado por admin
+      'en_proceso',     -- En preparación
+      'enviado',        -- Enviado al cliente
+      'entregado',      -- Entregado
+      'cancelado',      -- Cancelado
+      'rechazado'       -- Pago rechazado
+    )
+  ),
+  
+  -- Flow payment integration
+  commerce_order VARCHAR(255) UNIQUE NOT NULL,  -- ID único que enviamos a Flow
+  flow_order VARCHAR(255),                       -- ID que Flow nos devuelve
+  flow_token VARCHAR(255),                       -- Token de la transacción
+  flow_status INTEGER,                           -- Status code de Flow (1,2,3,4)
+  flow_payment_data JSONB,                       -- Datos completos del pago
+  
+  -- Método de pago
+  metodo_pago VARCHAR(50) DEFAULT 'flow',
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  fecha_pago TIMESTAMP,
+  fecha_envio TIMESTAMP,
+  fecha_entrega TIMESTAMP
+);
+```
+
+<Note>
+  The `commerce_order` field uses a unique format: `BMS-{timestamp}-{random}` to ensure no duplicate orders.
+</Note>
+
+### Order Items
+
+```sql
+CREATE TABLE pedido_items (
+  id SERIAL PRIMARY KEY,
+  pedido_id INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+  producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
+  
+  -- Guardamos los datos del producto en el momento de la compra
+  producto_titulo VARCHAR(200) NOT NULL,
+  producto_imagen VARCHAR(500),
+  
+  -- Cantidad y precios
+  cantidad INTEGER NOT NULL CHECK (cantidad > 0),
+  precio_unitario DECIMAL(10,2) NOT NULL,
+  subtotal DECIMAL(10,2) NOT NULL,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Webhook Log Table
+
+```sql
+CREATE TABLE IF NOT EXISTS flow_webhooks (
+  id SERIAL PRIMARY KEY,
+  pedido_id INTEGER REFERENCES pedidos(id) ON DELETE CASCADE,
+  
+  -- Datos del webhook
+  token VARCHAR(255) NOT NULL,
+  flow_order VARCHAR(255),
+  flow_status INTEGER,
+  
+  -- Request completo
+  request_body JSONB NOT NULL,
+  request_headers JSONB,
+  
+  -- Respuesta y procesamiento
+  processed BOOLEAN DEFAULT false,
+  processing_error TEXT,
+  
+  -- IP de origen (para seguridad)
+  ip_origen VARCHAR(45),
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+<Tip>
+  The webhook log table is essential for debugging payment issues and maintaining an audit trail.
+</Tip>
+
+## Payment Flow
+
+### Step 1: Create Payment
+
+When a customer initiates checkout, the system creates an order and Flow payment:
+
+```javascript
+// POST /api/payments/flow/create
+router.post('/flow/create', async (req, res) => {
+  const { items, total, email, nombre, notas, telefono, direccion } = req.body;
+  
+  // 1. Validate input
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email inválido.'
+    });
+  }
+  
+  // 2. Generate unique commerce order ID
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+  const commerceOrder = `BMS-${timestamp}-${randomSuffix}`;
+  
+  // 3. Start database transaction
+  await db.query('BEGIN');
+  
+  try {
+    // 4. Find or create user
+    const userResult = await db.query(
+      'SELECT id FROM usuarios WHERE email = $1',
+      [email.trim().toLowerCase()]
+    );
+    const usuarioId = userResult.rows.length > 0 ? userResult.rows[0].id : null;
+    
+    // 5. Create order
+    const pedidoResult = await db.query(
+      `INSERT INTO pedidos (
+        usuario_id, comprador_nombre, comprador_email,
+        comprador_telefono, direccion_envio, total,
+        costo_envio, notas, estado, commerce_order, metodo_pago
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pendiente', $9, 'flow')
+      RETURNING id`,
+      [usuarioId, nombre.trim(), email.trim().toLowerCase(),
+       telefono?.trim() || null, direccion?.trim() || 'Por coordinar',
+       total, 3500, notas?.trim() || null, commerceOrder]
+    );
+    
+    const pedidoId = pedidoResult.rows[0].id;
+    
+    // 6. Validate products and stock
+    const productIds = items.map(item => item.id);
+    const existingProducts = await db.query(
+      'SELECT id, titulo, stock FROM productos WHERE id = ANY($1)',
+      [productIds]
+    );
+    
+    // Check for missing products
+    const existingIds = existingProducts.rows.map(p => p.id);
+    const missingIds = productIds.filter(id => !existingIds.includes(id));
+    
+    if (missingIds.length > 0) {
+      await db.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Algunos productos ya no están disponibles`,
+        productos_no_disponibles: missingIds
+      });
+    }
+    
+    // Check for insufficient stock
+    const stockInsuficiente = [];
+    for (const item of items) {
+      const producto = existingProducts.rows.find(p => p.id === item.id);
+      if (producto && producto.stock < item.quantity) {
+        stockInsuficiente.push({
+          id: item.id,
+          nombre: item.nombre || item.titulo || producto.titulo,
+          disponible: producto.stock,
+          solicitado: item.quantity
+        });
+      }
+    }
+    
+    if (stockInsuficiente.length > 0) {
+      await db.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: 'Stock insuficiente para algunos productos',
+        productos_sin_stock: stockInsuficiente
+      });
+    }
+    
+    // 7. Insert order items
+    for (const item of items) {
+      await db.query(
+        `INSERT INTO pedido_items (
+          pedido_id, producto_id, producto_titulo,
+          producto_imagen, cantidad, precio_unitario, subtotal
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [pedidoId, item.id, item.nombre || item.titulo,
+         item.imagen || item.imagen_principal, item.quantity,
+         item.precio, item.precio * item.quantity]
+      );
+    }
+    
+    // 8. Create Flow payment
+    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const subject = `Pedido #${pedidoId} - ${itemCount} producto${itemCount > 1 ? 's' : ''}`;
+    
+    const flowResponse = await flowService.createPayment({
+      commerceOrder,
+      subject,
+      amount: total,
+      email: email.trim().toLowerCase(),
+      urlConfirmation: `${process.env.BACKEND_URL}/api/payments/flow/confirmation`,
+      urlReturn: `${process.env.BACKEND_URL}/api/payments/flow/return`
+    });
+    
+    // 9. Save Flow token
+    await db.query(
+      'UPDATE pedidos SET flow_token = $1 WHERE id = $2',
+      [flowResponse.token, pedidoId]
+    );
+    
+    await db.query('COMMIT');
+    
+    // 10. Return payment URL
+    res.json({
+      success: true,
+      paymentUrl: `${flowResponse.url}?token=${flowResponse.token}`,
+      flowOrder: flowResponse.flowOrder,
+      pedidoId,
+      commerceOrder
+    });
+    
+  } catch (error) {
+    await db.query('ROLLBACK');
+    throw error;
+  }
+});
+```
+
+<Card title="Payment Creation Process" icon="list">
+  1. Validate customer data
+  2. Generate unique commerce order ID
+  3. Start database transaction
+  4. Create or find user record
+  5. Create order in database
+  6. Validate product availability and stock
+  7. Insert order line items
+  8. Create payment in Flow
+  9. Save Flow token to order
+  10. Return payment URL to frontend
+</Card>
+
+### Step 2: Customer Payment
+
+The frontend redirects the customer to Flow's payment page:
+
+```javascript
+const response = await api.post('/payments/flow/create', {
+  items: cartItems,
+  total: totalAmount,
+  email: customerEmail,
+  nombre: customerName,
+  telefono: customerPhone,
+  direccion: shippingAddress,
+  notas: orderNotes
+});
+
+if (response.data.success) {
+  // Redirect to Flow payment page
+  window.location.href = response.data.paymentUrl;
+}
+```
+
+### Step 3: Payment Confirmation (Webhook)
+
+Flow sends a webhook notification when the payment status changes:
+
+```javascript
+// POST /api/payments/flow/confirmation
+router.post('/flow/confirmation', async (req, res) => {
+  const token = req.body.token;
+  
+  try {
+    // 1. Log webhook
+    const webhookResult = await db.query(
+      `INSERT INTO flow_webhooks (
+        token, request_body, request_headers, ip_origen
+      ) VALUES ($1, $2, $3, $4)
+      RETURNING id`,
+      [token, JSON.stringify(req.body),
+       JSON.stringify(req.headers),
+       req.ip || req.connection.remoteAddress]
+    );
+    
+    const webhookId = webhookResult.rows[0].id;
+    
+    // 2. Validate signature (production only)
+    if (process.env.FLOW_ENV === 'production' && 
+        !flowService.validateCallback(req.body)) {
+      await db.query(
+        'UPDATE flow_webhooks SET processing_error = $1 WHERE id = $2',
+        ['Invalid signature', webhookId]
+      );
+      return res.status(400).send('Invalid signature');
+    }
+    
+    // 3. Get payment status from Flow
+    const payment = await flowService.getPaymentStatus(token);
+    
+    // 4. Map Flow status to internal status
+    const statusMap = {
+      1: 'pendiente',
+      2: 'pagado',
+      3: 'rechazado',
+      4: 'cancelado'
+    };
+    
+    const nuevoEstado = statusMap[payment.status] || 'pendiente';
+    
+    // 5. Update order with Flow data
+    const updateResult = await db.query(
+      `UPDATE pedidos 
+      SET 
+        flow_order = $1,
+        flow_status = $2,
+        estado = $3,
+        flow_payment_data = $4,
+        fecha_pago = CASE WHEN $5 = 'pagado' THEN NOW() ELSE fecha_pago END,
+        updated_at = NOW()
+      WHERE commerce_order = $6
+      RETURNING id, comprador_email, comprador_nombre, total`,
+      [String(payment.flowOrder), parseInt(payment.status),
+       nuevoEstado, JSON.stringify(payment),
+       nuevoEstado, String(payment.commerceOrder)]
+    );
+    
+    const pedido = updateResult.rows[0];
+    
+    // 6. Deduct stock if payment confirmed
+    if (payment.status === 2) {
+      const itemsResult = await db.query(
+        `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = $1`,
+        [pedido.id]
+      );
+      
+      for (const item of itemsResult.rows) {
+        const updateStock = await db.query(
+          `UPDATE productos 
+           SET stock = stock - $1, updated_at = NOW() 
+           WHERE id = $2 AND stock >= $3
+           RETURNING id, titulo, stock`,
+          [item.cantidad, item.producto_id, item.cantidad]
+        );
+        
+        if (updateStock.rows.length === 0) {
+          console.warn(`Stock insuficiente para producto ID ${item.producto_id}`);
+        }
+      }
+    }
+    
+    // 7. Mark webhook as processed
+    await db.query(
+      `UPDATE flow_webhooks 
+      SET processed = true, pedido_id = $1, 
+          flow_order = $2, flow_status = $3
+      WHERE id = $4`,
+      [pedido.id, payment.flowOrder, payment.status, webhookId]
+    );
+    
+    res.sendStatus(200);
+    
+  } catch (error) {
+    console.error('Error procesando webhook:', error);
+    res.sendStatus(500);
+  }
+});
+```
+
+<Note>
+  **Flow Status Codes:**
+  - `1` - Pendiente: Payment initiated but not completed
+  - `2` - Pagado: Payment successful and confirmed
+  - `3` - Rechazado: Payment rejected by bank or card issuer
+  - `4` - Cancelado: Payment cancelled by user
+</Note>
+
+### Step 4: Return to Store
+
+After payment (successful or not), Flow redirects the customer back to your site:
+
+```javascript
+// GET /api/payments/flow/return
+router.get('/flow/return', async (req, res) => {
+  const token = req.query.token;
+  
+  try {
+    const result = await db.query(
+      'SELECT id FROM pedidos WHERE flow_token = $1',
+      [token]
+    );
+    
+    const pedidoId = result.rows.length > 0 ? result.rows[0].id : null;
+    const redirectUrl = pedidoId
+      ? `${process.env.FRONTEND_URL}/payment/return?token=${token}&pedidoId=${pedidoId}`
+      : `${process.env.FRONTEND_URL}/payment/return?token=${token}`;
+    
+    res.redirect(redirectUrl);
+  } catch (error) {
+    console.error('Error buscando pedido:', error);
+    res.redirect(`${process.env.FRONTEND_URL}/payment/return?token=${token}`);
+  }
+});
+```
+
+## Order Status Tracking
+
+Customers can check their order status:
+
+```javascript
+// GET /api/payments/pedido/:pedidoId/status
+router.get('/pedido/:pedidoId/status', async (req, res) => {
+  const result = await db.query(
+    `SELECT 
+      p.*,
+      json_agg(
+        json_build_object(
+          'titulo', pi.producto_titulo,
+          'imagen', pi.producto_imagen,
+          'cantidad', pi.cantidad,
+          'precio_unitario', pi.precio_unitario,
+          'subtotal', pi.subtotal
+        )
+      ) as items
+    FROM pedidos p
+    LEFT JOIN pedido_items pi ON p.id = pi.pedido_id
+    WHERE p.id = $1
+    GROUP BY p.id`,
+    [req.params.pedidoId]
+  );
+  
+  const pedido = result.rows[0];
+  
+  res.json({
+    success: true,
+    pedido: {
+      id: pedido.id,
+      commerceOrder: pedido.commerce_order,
+      flowOrder: pedido.flow_order,
+      estado: pedido.estado,
+      total: pedido.total,
+      costoEnvio: pedido.costo_envio,
+      comprador: {
+        nombre: pedido.comprador_nombre,
+        email: pedido.comprador_email,
+        telefono: pedido.comprador_telefono
+      },
+      direccionEnvio: pedido.direccion_envio,
+      notas: pedido.notas,
+      items: pedido.items,
+      fechaCreacion: pedido.created_at,
+      fechaPago: pedido.fecha_pago
+    }
+  });
+});
+```
+
+## Stock Management
+
+Stock is automatically managed during the payment flow:
+
+### Pre-Payment Validation
+
+Before creating the payment, validate that all products have sufficient stock:
+
+```javascript
+const stockInsuficiente = [];
+for (const item of items) {
+  const producto = existingProducts.rows.find(p => p.id === item.id);
+  if (producto && producto.stock < item.quantity) {
+    stockInsuficiente.push({
+      id: item.id,
+      nombre: producto.titulo,
+      disponible: producto.stock,
+      solicitado: item.quantity
+    });
+  }
+}
+
+if (stockInsuficiente.length > 0) {
+  return res.status(400).json({
+    success: false,
+    message: 'Stock insuficiente',
+    productos_sin_stock: stockInsuficiente
+  });
+}
+```
+
+### Post-Payment Deduction
+
+When payment is confirmed (status = 2), automatically deduct stock:
+
+```javascript
+if (payment.status === 2) {
+  console.log('Pago confirmado - Descontando stock');
+  
+  const itemsResult = await db.query(
+    `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = $1`,
+    [pedido.id]
+  );
+  
+  for (const item of itemsResult.rows) {
+    await db.query(
+      `UPDATE productos 
+       SET stock = stock - $1, updated_at = NOW() 
+       WHERE id = $2 AND stock >= $3`,
+      [item.cantidad, item.producto_id, item.cantidad]
+    );
+  }
+}
+```
+
+<Tip>
+  The `stock >= cantidad` condition prevents negative stock values if concurrent purchases occur.
+</Tip>
+
+## Environment Configuration
+
+Required environment variables:
+
+```bash
+# Flow API Credentials
+FLOW_API_KEY=your_flow_api_key
+FLOW_SECRET_KEY=your_flow_secret_key
+FLOW_ENV=production  # or 'sandbox' for testing
+
+# URLs
+BACKEND_URL=https://api.blackmichiestudio.com
+FRONTEND_URL=https://blackmichiestudio.com
+```
+
+## Security Best Practices
+
+<Card title="Security Checklist" icon="shield">
+  1. **Always validate webhooks** - Verify Flow's signature in production
+  2. **Use HTTPS** - All webhook URLs must use HTTPS
+  3. **Log everything** - Store all webhook requests for audit trail
+  4. **Validate stock** - Check availability before creating payment
+  5. **Use transactions** - Wrap order creation in database transactions
+  6. **Store payment data** - Save complete Flow response as JSONB
+  7. **Handle duplicates** - Webhook can be sent multiple times
+  8. **Sanitize inputs** - Validate and sanitize all customer data
+</Card>
+
+## Error Handling
+
+Common error scenarios:
+
+### Missing Products
+
+```javascript
+if (missingIds.length > 0) {
+  await db.query('ROLLBACK');
+  return res.status(400).json({
+    success: false,
+    message: `Productos no disponibles: ${missingIds.join(', ')}`,
+    productos_no_disponibles: missingIds
+  });
+}
+```
+
+### Insufficient Stock
+
+```javascript
+if (stockInsuficiente.length > 0) {
+  await db.query('ROLLBACK');
+  return res.status(400).json({
+    success: false,
+    message: 'Stock insuficiente',
+    productos_sin_stock: stockInsuficiente
+  });
+}
+```
+
+### Flow API Error
+
+```javascript
+try {
+  const flowResponse = await flowService.createPayment(paymentData);
+} catch (error) {
+  console.error('Error Flow API:', error);
+  res.status(500).json({
+    success: false,
+    message: 'Error al conectar con Flow. Verifica tu conexión.'
+  });
+}
+```
+
+## Testing
+
+For testing, use Flow's sandbox environment:
+
+```bash
+FLOW_ENV=sandbox
+FLOW_API_KEY=sandbox_api_key
+FLOW_SECRET_KEY=sandbox_secret_key
+```
+
+Flow provides test cards for various scenarios:
+- Successful payment
+- Rejected payment
+- Insufficient funds
+- Expired card
+
+<Note>
+  In sandbox mode, webhook signature validation is skipped to facilitate testing.
+</Note>
+
+## Related Features
+
+- [Product Catalog](/features/product-catalog) - Products available for purchase
+- [Reviews & Ratings](/features/reviews-ratings) - Customer reviews after purchase

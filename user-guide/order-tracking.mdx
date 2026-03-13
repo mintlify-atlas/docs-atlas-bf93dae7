@@ -1,0 +1,687 @@
+---
+title: 'Order Tracking & History'
+description: 'Track your orders and view your purchase history in Black Michi Studio'
+---
+
+# Order Tracking & History
+
+Monitor your order status from payment confirmation through delivery with Black Michi Studio's order tracking system.
+
+## Understanding Order States
+
+Every order (pedido) in the system progresses through various states from creation to delivery.
+
+### Order Lifecycle States
+
+Based on the database schema, orders can have the following states:
+
+| State | Spanish | Description |
+|-------|---------|-------------|
+| **pending** | pendiente | Order created, awaiting payment |
+| **paid** | pagado | Payment confirmed by Flow |
+| **confirmed** | confirmado | Order confirmed by admin |
+| **processing** | en_proceso | Order is being prepared/printed |
+| **shipped** | enviado | Order shipped to customer |
+| **delivered** | entregado | Order delivered successfully |
+| **cancelled** | cancelado | Order cancelled |
+| **rejected** | rechazado | Payment rejected by Flow |
+
+### Order State Flow
+
+Typical order progression:
+
+```
+pendiente → pagado → confirmado → en_proceso → enviado → entregado
+```
+
+**Alternative paths:**
+- **Payment Rejected**: `pendiente → rechazado`
+- **User Cancelled**: `pendiente → cancelado`
+- **Admin Cancelled**: `confirmado → cancelado`
+
+<Note>
+  Only orders in **"pendiente"** (pending) status can be cancelled by customers.
+</Note>
+
+## Order Creation
+
+When you complete checkout, the system creates a new order (pedido).
+
+### Order Information Stored
+
+**Customer Information:**
+- User ID (if logged in, NULL for guest checkout)
+- Buyer name (comprador_nombre)
+- Buyer email (comprador_email)
+- Buyer phone (comprador_telefono)
+- Shipping address (direccion_envio)
+
+**Order Details:**
+- Order ID (auto-generated)
+- Commerce Order ID (unique: `BMS-{timestamp}-{random}`)
+- Total amount (total)
+- Shipping cost (costo_envio): CLP 3,500
+- Additional notes (notas)
+- Order items with quantities
+
+**Payment Information:**
+- Payment method (metodo_pago): "flow"
+- Flow token (flow_token)
+- Flow order number (flow_order)
+- Flow status code (flow_status): 1, 2, 3, or 4
+- Complete payment data (flow_payment_data): JSON
+
+**Timestamps:**
+- Created at (created_at): Order creation time
+- Updated at (updated_at): Last modification time
+- Payment date (fecha_pago): When payment confirmed
+- Shipping date (fecha_envio): When order shipped
+- Delivery date (fecha_entrega): When order delivered
+
+### Order Items
+
+Each product in your order is stored as a separate item (pedido_items):
+
+- Product ID (references original product)
+- Product title (at time of purchase)
+- Product image (snapshot)
+- Quantity ordered
+- Unit price (at time of purchase)
+- Subtotal (price × quantity)
+
+<Tip>
+  Product details are captured at purchase time, so you always have a record even if the product changes or is deleted later.
+</Tip>
+
+## Viewing Order Status
+
+Check your order status through various methods.
+
+### Method 1: Payment Return Page
+
+Immediately after payment, you're returned to `/payment/return`.
+
+<Steps>
+  <Step title="Payment Processing">
+    After completing payment on Flow, you're redirected back to the store
+  </Step>
+  
+  <Step title="Status Check">
+    The system:
+    - Waits 3 seconds for webhook processing
+    - Retrieves order status from database
+    - Displays result based on payment outcome
+  </Step>
+  
+  <Step title="View Order Details">
+    The page shows:
+    - Order number (Pedido #XX)
+    - Payment status
+    - Confirmation email address
+    - Next steps
+  </Step>
+</Steps>
+
+**Status Display:**
+
+**✅ Successful Payment:**
+- Green confirmation screen
+- "¡Pago exitoso!" message
+- Order number displayed
+- Email confirmation sent
+- Cart automatically cleared
+
+**⏳ Pending Payment:**
+- Yellow pending screen
+- "Pago pendiente" message
+- Notification that you'll receive email update
+
+**❌ Rejected Payment:**
+- Red error screen
+- "Pago rechazado" message
+- Options to retry or return home
+
+### Method 2: Order Status API Endpoint
+
+Query a specific order by ID:
+
+**Endpoint:** `GET /api/payments/pedido/{pedidoId}/status`
+
+**Returns:**
+```json
+{
+  "success": true,
+  "pedido": {
+    "id": 123,
+    "commerceOrder": "BMS-1234567890-ABCDE",
+    "flowOrder": "12345",
+    "estado": "pagado",
+    "total": 25990,
+    "costoEnvio": 3500,
+    "comprador": {
+      "nombre": "Juan Pérez",
+      "email": "juan@ejemplo.com",
+      "telefono": "+56 9 1234 5678"
+    },
+    "direccionEnvio": "Calle Example 123, Santiago",
+    "notas": "Entregar en horario de tarde",
+    "items": [
+      {
+        "titulo": "Vaso 3D Verde",
+        "imagen": "/images/products/vaso.webp",
+        "cantidad": 2,
+        "precio_unitario": 3990,
+        "subtotal": 7980
+      }
+    ],
+    "fechaCreacion": "2025-03-13T10:30:00Z",
+    "fechaPago": "2025-03-13T10:35:00Z"
+  }
+}
+```
+
+### Method 3: User Order History (Registered Users)
+
+If you have an account, view all your orders in one place.
+
+**Endpoint:** `GET /api/client/pedidos` (requires authentication)
+
+<Steps>
+  <Step title="Access Order History">
+    Navigate to your client panel or orders page
+  </Step>
+  
+  <Step title="View Order List">
+    See all your orders sorted by creation date (newest first)
+    
+    Each order shows:
+    - Order number
+    - Order date
+    - Current status
+    - Total amount
+    - Shipping address
+    - Product thumbnails
+  </Step>
+  
+  <Step title="View Order Details">
+    Click on any order to see full details including:
+    - Complete item list
+    - Shipping information
+    - Payment details
+    - Status history
+    - Tracking information (if shipped)
+  </Step>
+</Steps>
+
+**Single Order Details:**
+
+**Endpoint:** `GET /api/client/pedidos/{id}` (requires authentication)
+
+Returns complete information for one order including:
+- All order fields
+- Product details with images
+- Payment status
+- Shipping information
+
+<Note>
+  You can only view orders associated with your account. The system verifies your user ID matches the order's user ID.
+</Note>
+
+## Payment Confirmation Process
+
+Understand how payment status is confirmed and updated.
+
+### Webhook Confirmation
+
+When Flow processes payment, it sends a webhook to:
+
+**Endpoint:** `POST /api/payments/flow/confirmation`
+
+<Steps>
+  <Step title="Flow Sends Webhook">
+    Flow POSTs payment confirmation to the webhook URL with token
+  </Step>
+  
+  <Step title="Webhook Logged">
+    System records webhook in `flow_webhooks` table:
+    - Token
+    - Request body (JSON)
+    - Request headers
+    - Origin IP address
+    - Timestamp
+  </Step>
+  
+  <Step title="Signature Validation">
+    In production, webhook signature is validated to ensure authenticity
+  </Step>
+  
+  <Step title="Payment Status Retrieval">
+    System queries Flow API with token to get full payment status
+  </Step>
+  
+  <Step title="Order Update">
+    Order (pedido) is updated with:
+    - Flow order number
+    - Flow status code (1-4)
+    - Mapped internal status
+    - Complete payment data (JSON)
+    - Payment date (if successful)
+  </Step>
+  
+  <Step title="Stock Deduction">
+    If payment successful (status = 2):
+    - Stock deducted from each product
+    - Product `updated_at` timestamps set
+    - Warnings logged if insufficient stock
+  </Step>
+  
+  <Step title="Webhook Marked Processed">
+    Webhook record updated:
+    - `processed` = true
+    - `pedido_id` linked
+    - `flow_order` and `flow_status` recorded
+  </Step>
+</Steps>
+
+### Status Mapping
+
+Flow status codes are mapped to internal states:
+
+```javascript
+const statusMap = {
+  1: 'pendiente',  // Pending
+  2: 'pagado',     // Paid
+  3: 'rechazado',  // Rejected
+  4: 'cancelado'   // Cancelled
+};
+```
+
+<Warning>
+  **Important:** Stock is only deducted after confirmed payment (status = 2), not when items are added to cart. This prevents inventory lock-up from abandoned carts.
+</Warning>
+
+## Order Status Updates
+
+After payment confirmation, admins can update order status as it progresses.
+
+### Status Update by Admin
+
+Administrators can change order status through the admin panel:
+
+**Typical Progression:**
+
+<Steps>
+  <Step title="Payment Confirmed (pagado)">
+    Automatically set by webhook after successful Flow payment
+    
+    **Email sent:** Order confirmation
+  </Step>
+  
+  <Step title="Order Confirmed (confirmado)">
+    Admin reviews and confirms the order is ready for production
+    
+    **Actions:** Verify address, check customization notes
+  </Step>
+  
+  <Step title="In Process (en_proceso)">
+    Order is being prepared:
+    - 3D printing in progress
+    - Products being assembled
+    - Quality checks performed
+    
+    **Typical Duration:** 1-3 days
+  </Step>
+  
+  <Step title="Shipped (enviado)">
+    Order shipped to customer
+    
+    **Actions:**
+    - `fecha_envio` timestamp set
+    - Tracking number added (if available)
+    - Email sent with shipping notification
+    
+    **Delivery Time:** 3-5 days
+  </Step>
+  
+  <Step title="Delivered (entregado)">
+    Customer received the order
+    
+    **Actions:**
+    - `fecha_entrega` timestamp set
+    - Order marked complete
+    - Email sent requesting review
+  </Step>
+</Steps>
+
+### Timeline Tracking
+
+Key timestamps track order progress:
+
+- **created_at**: Order placed
+- **fecha_pago**: Payment confirmed
+- **fecha_envio**: Order shipped
+- **fecha_entrega**: Order delivered
+- **updated_at**: Last status change
+
+<Tip>
+  Calculate estimated delivery by adding 3-5 days to `fecha_envio` (shipping date).
+</Tip>
+
+## Cancelling Orders
+
+Cancel orders before they are processed.
+
+### Customer Cancellation
+
+**Endpoint:** `PUT /api/client/pedidos/{id}/cancelar` (requires authentication)
+
+<Steps>
+  <Step title="Check Eligibility">
+    Only orders in **"pendiente"** (pending) status can be cancelled by customers
+  </Step>
+  
+  <Step title="Request Cancellation">
+    Navigate to order details and click cancel button
+    
+    Or make API call to cancellation endpoint
+  </Step>
+  
+  <Step title="Validation">
+    System verifies:
+    - Order belongs to your account
+    - Order status is "pendiente"
+    - Order hasn't been paid/processed
+  </Step>
+  
+  <Step title="Cancellation Processing">
+    If valid:
+    - Order status changed to "cancelado"
+    - Stock returned to products
+    - `updated_at` timestamp set
+    
+    Success message: "Pedido cancelado correctamente"
+  </Step>
+</Steps>
+
+<Warning>
+  **Cannot Cancel:**
+  - Orders that are **"pagado"** or beyond (payment confirmed)
+  - Orders being processed, shipped, or delivered
+  - Orders from other users
+  
+  **Error:** "Solo pedidos pendientes se pueden cancelar" (Only pending orders can be cancelled)
+</Warning>
+
+### Admin Cancellation
+
+Administrators can cancel orders at any stage:
+
+- Change status to "cancelado" in admin panel
+- Manually refund payment if needed
+- Return stock to inventory
+- Notify customer via email
+
+**Common Reasons:**
+- Payment issues or fraud
+- Product unavailability
+- Customer request after pending window
+- Order errors
+
+## Email Notifications
+
+Receive email updates at key order milestones.
+
+### Notification Types
+
+**Order Confirmation** (estado: pagado)
+- Sent immediately after payment confirmation
+- Includes order number, items, total, shipping address
+- Confirmation that payment received
+
+**Order Shipped** (estado: enviado)
+- Sent when order dispatched
+- Includes tracking number (if available)
+- Estimated delivery date
+
+**Order Delivered** (estado: entregado)
+- Sent when delivery confirmed
+- Thanks for purchase
+- Request to leave product review
+
+**Order Cancelled** (estado: cancelado)
+- Notification of cancellation
+- Reason (if provided)
+- Refund information (if applicable)
+
+**Payment Rejected** (estado: rechazado)
+- Notification that payment failed
+- Instructions to retry
+- Link to checkout
+
+<Note>
+  All emails are sent to the `comprador_email` (buyer email) provided at checkout.
+</Note>
+
+## Viewing Order Details
+
+### Order Information Displayed
+
+When viewing an order, you can see:
+
+**Order Header:**
+- Order number (ID)
+- Commerce Order ID (unique identifier)
+- Flow Order number (payment reference)
+- Current status with visual indicator
+- Order date and time
+
+**Customer Information:**
+- Name
+- Email
+- Phone number
+- Shipping address
+- Special notes/instructions
+
+**Order Items:**
+For each product:
+- Product image (snapshot)
+- Product title (at time of purchase)
+- Quantity ordered
+- Unit price
+- Subtotal
+
+**Order Totals:**
+```
+Subtotal:    CLP XX,XXX
+Envío:       CLP 3,500
+─────────────────────
+Total:       CLP XX,XXX
+```
+
+**Payment Details:**
+- Payment method (Flow)
+- Payment status
+- Transaction date
+- Flow transaction ID
+
+**Shipping Information:**
+- Shipping method
+- Shipping cost
+- Delivery address
+- Tracking number (if available)
+
+**Timeline:**
+- Order created: [date/time]
+- Payment confirmed: [date/time]
+- Order shipped: [date/time]
+- Order delivered: [date/time]
+
+## Guest Order Tracking
+
+Track orders without an account using order details from confirmation email.
+
+### Tracking Guest Orders
+
+If you checked out as a guest:
+
+1. **Save Confirmation Email**: Contains order number and details
+2. **Use Order Status Endpoint**: Query with order ID if you have it
+3. **Contact Support**: Provide email and order number for status inquiry
+
+<Tip>
+  **Create an account** to access order history easily. Guest orders cannot be viewed in a dashboard without the order number.
+</Tip>
+
+## Order History Features (Registered Users)
+
+### Filtering & Sorting
+
+In your order history page, you can:
+
+- **Sort by Date**: Newest first (default), oldest first
+- **Filter by Status**: Show only specific states (pendiente, pagado, enviado, etc.)
+- **Search**: Find orders by order number or product name
+- **Date Range**: View orders from specific time period
+
+### Order Actions
+
+**Available Actions by Status:**
+
+| Status | Available Actions |
+|--------|------------------|
+| pendiente | Cancel order, View details |
+| pagado | View details, Track shipping |
+| confirmado | View details, Track shipping |
+| en_proceso | View details, Track shipping |
+| enviado | View details, Track shipping |
+| entregado | View details, Reorder, Leave review |
+| cancelado | View details, Reorder |
+| rechazado | View details, Retry payment |
+
+### Reordering
+
+Quickly reorder previous purchases:
+
+<Steps>
+  <Step title="Find Past Order">
+    Navigate to order history and locate the order
+  </Step>
+  
+  <Step title="Click Reorder">
+    Click "Reorder" button on delivered or completed orders
+  </Step>
+  
+  <Step title="Add to Cart">
+    All items from that order are added to your cart
+  </Step>
+  
+  <Step title="Review & Checkout">
+    Review cart contents, make any changes, and proceed to checkout
+  </Step>
+</Steps>
+
+## Shipping & Delivery
+
+### Shipping Information
+
+**Standard Shipping:**
+- Cost: CLP 3,500 (added to all orders)
+- Estimated delivery: 3-5 business days after shipment
+- Delivery to address provided at checkout
+
+**Shipping Coverage:**
+- Nationwide delivery in Chile
+- Remote areas may require additional time
+
+<Note>
+  Free shipping promotion available for orders over CLP 20,000 (as shown in header banner).
+</Note>
+
+### Tracking Shipments
+
+Once your order is shipped:
+
+1. **Email Notification**: You'll receive shipping confirmation
+2. **Tracking Number**: Included in email and order details
+3. **Carrier Information**: Shipping company name and contact
+4. **Track Online**: Use tracking number on carrier's website
+
+<Tip>
+  Contact the shipping carrier directly for real-time location updates.
+</Tip>
+
+### Delivery Instructions
+
+Provide special delivery instructions in the checkout **"Notas"** (Notes) field:
+
+- Preferred delivery time
+- Gate codes or access instructions  
+- Safe place to leave package
+- Contact person if different from buyer
+
+## Issues & Support
+
+### Common Order Issues
+
+**Order Not Received:**
+- Check tracking information
+- Verify delivery address was correct
+- Check with neighbors or building reception
+- Contact carrier with tracking number
+- Contact Black Michi Studio support
+
+**Wrong Item Received:**
+- Take photos of incorrect item
+- Keep all packaging
+- Contact support with order number and photos
+- Return/exchange will be arranged
+
+**Damaged Item:**
+- Document damage with photos
+- Contact support within 7 days of delivery
+- Include order number and product details
+- Replacement or refund will be processed
+
+**Order Status Not Updating:**
+- Allow 24-48 hours for status updates
+- Check spam folder for status emails
+- Contact support with order number if delayed
+
+### Contacting Support
+
+For order assistance:
+
+**Information to Provide:**
+- Order number (Pedido #)
+- Commerce Order ID (BMS-XXXXX)
+- Buyer email address
+- Description of issue
+- Any relevant screenshots
+
+**Support Channels:**
+- Email: Contact provided in confirmation email
+- Response time: Within 24-48 hours
+
+<Tip>
+  Having your order number ready speeds up the support process significantly.
+</Tip>
+
+## Order Data & Privacy
+
+**Your Order Information:**
+- Stored securely in encrypted database
+- Accessible only to you and authorized staff
+- Used for order fulfillment and support
+- Retained for business records per legal requirements
+
+**Data Retention:**
+- Active orders: Full details retained
+- Completed orders: Kept for warranty and support
+- Cancelled orders: Retained for business records
+- User deletion: Orders may be anonymized but retained
+
+## Next Steps
+
+- Continue [Shopping for Products](/user-guide/shopping)
+- Review the [Checkout Process](/user-guide/cart-checkout)
+- Manage your [Account Settings](/user-guide/account-management)

@@ -1,0 +1,453 @@
+---
+title: 'Products'
+description: 'Product catalog and management endpoints'
+---
+
+## List All Products
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/productos
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/productos');
+const products = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.blackmichistudio.com/api/productos')
+products = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/productos
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (public endpoint)
+</ParamField>
+
+### Response
+
+Returns an array of active products with category information.
+
+<ResponseField name="products" type="array">
+  <expandable>
+    <ResponseField name="id" type="integer">
+      Product unique identifier
+    </ResponseField>
+    <ResponseField name="titulo" type="string">
+      Product title
+    </ResponseField>
+    <ResponseField name="slug" type="string">
+      URL-friendly product slug
+    </ResponseField>
+    <ResponseField name="precio" type="number">
+      Product price in CLP
+    </ResponseField>
+    <ResponseField name="descripcion" type="string">
+      Product description
+    </ResponseField>
+    <ResponseField name="imagen_principal" type="string">
+      Main product image URL
+    </ResponseField>
+    <ResponseField name="imagenes_adicionales" type="array">
+      Additional product images (URLs)
+    </ResponseField>
+    <ResponseField name="categoria_id" type="integer">
+      Category identifier
+    </ResponseField>
+    <ResponseField name="categoria_nombre" type="string">
+      Category name
+    </ResponseField>
+    <ResponseField name="stock" type="integer">
+      Available stock quantity
+    </ResponseField>
+    <ResponseField name="activo" type="boolean">
+      Whether product is active (always true in this endpoint)
+    </ResponseField>
+    <ResponseField name="promedio_calificacion" type="number">
+      Average rating (1-5)
+    </ResponseField>
+    <ResponseField name="total_valoraciones" type="integer">
+      Total number of reviews
+    </ResponseField>
+    <ResponseField name="created_at" type="timestamp">
+      Product creation date
+    </ResponseField>
+    <ResponseField name="updated_at" type="timestamp">
+      Last update timestamp
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+### Caching
+
+This endpoint uses server-side caching with a 5-minute TTL to improve performance.
+
+---
+
+## Get Product by ID
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/productos/123
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/productos/123');
+const product = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.blackmichistudio.com/api/productos/123')
+product = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/productos/:id
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (public endpoint)
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Product ID
+</ParamField>
+
+### Response
+
+Returns a single product object with the same fields as the list endpoint.
+
+### Error Responses
+
+<ResponseField name="404" type="object">
+  Product not found
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Producto no encontrado"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error obteniendo producto"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Create Product (Admin Only)
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.blackmichistudio.com/api/productos \
+  -H "Authorization: Bearer <admin-token>" \
+  -F "nombre=Product Name" \
+  -F "precio=25990" \
+  -F "stock=100" \
+  -F "categoria=Accessories" \
+  -F "descripcion=Product description" \
+  -F "images=@image1.jpg" \
+  -F "images=@image2.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('nombre', 'Product Name');
+formData.append('precio', '25990');
+formData.append('stock', '100');
+formData.append('categoria', 'Accessories');
+formData.append('descripcion', 'Product description');
+formData.append('images', fileInput.files[0]);
+formData.append('images', fileInput.files[1]);
+
+const response = await fetch('https://api.blackmichistudio.com/api/productos', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + adminToken
+  },
+  body: formData
+});
+
+const result = await response.json();
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/productos
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Admin role only
+</ParamField>
+
+### Request Body (multipart/form-data)
+
+<ParamField body="nombre" type="string" required>
+  Product name/title
+</ParamField>
+
+<ParamField body="precio" type="number" required>
+  Product price in CLP
+</ParamField>
+
+<ParamField body="stock" type="integer" required>
+  Initial stock quantity
+</ParamField>
+
+<ParamField body="categoria" type="string">
+  Category name (created if doesn't exist)
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Product description
+</ParamField>
+
+<ParamField body="images" type="file[]">
+  Product images (max 10). First image becomes the main image.
+</ParamField>
+
+### Response
+
+<ResponseField name="ok" type="boolean">
+  Success indicator (true)
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="401" type="object">
+  Unauthorized - Missing or invalid token
+</ResponseField>
+
+<ResponseField name="403" type="object">
+  Forbidden - User is not admin
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error creando producto"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Update Product (Admin Only)
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://api.blackmichistudio.com/api/productos/123 \
+  -H "Authorization: Bearer <admin-token>" \
+  -F "titulo=Updated Product Name" \
+  -F "precio=29990" \
+  -F "stock=150" \
+  -F "categoria=New Category" \
+  -F "descripcion=Updated description" \
+  -F "images=@new-image.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('titulo', 'Updated Product Name');
+formData.append('precio', '29990');
+formData.append('stock', '150');
+formData.append('categoria', 'New Category');
+formData.append('descripcion', 'Updated description');
+if (newImages.length > 0) {
+  newImages.forEach(file => formData.append('images', file));
+}
+
+const response = await fetch('https://api.blackmichistudio.com/api/productos/123', {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer ' + adminToken
+  },
+  body: formData
+});
+
+const result = await response.json();
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  PUT
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/productos/:id
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Admin role only
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Product ID to update
+</ParamField>
+
+### Request Body (multipart/form-data)
+
+<ParamField body="titulo" type="string">
+  Updated product title
+</ParamField>
+
+<ParamField body="precio" type="number">
+  Updated price
+</ParamField>
+
+<ParamField body="stock" type="integer">
+  Updated stock quantity
+</ParamField>
+
+<ParamField body="categoria" type="string">
+  Updated category name
+</ParamField>
+
+<ParamField body="descripcion" type="string">
+  Updated description
+</ParamField>
+
+<ParamField body="images" type="file[]">
+  New product images (replaces existing images if provided)
+</ParamField>
+
+### Response
+
+Returns the updated product object with all fields.
+
+### Error Responses
+
+<ResponseField name="404" type="object">
+  Product not found
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Producto no encontrado"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error actualizando producto"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Delete Product (Admin Only)
+
+<CodeGroup>
+```bash cURL
+curl -X DELETE https://api.blackmichistudio.com/api/productos/123 \
+  -H "Authorization: Bearer <admin-token>"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/productos/123', {
+  method: 'DELETE',
+  headers: {
+    'Authorization': 'Bearer ' + adminToken
+  }
+});
+
+const result = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.delete(
+  'https://api.blackmichistudio.com/api/productos/123',
+  headers={'Authorization': f'Bearer {admin_token}'}
+)
+
+result = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  DELETE
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/productos/:id
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Admin role only
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Product ID to delete
+</ParamField>
+
+### Response
+
+<ResponseField name="ok" type="boolean">
+  Success indicator (true)
+</ResponseField>
+
+### Error Responses
+
+<ResponseField name="401" type="object">
+  Unauthorized - Missing or invalid token
+</ResponseField>
+
+<ResponseField name="403" type="object">
+  Forbidden - User is not admin
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error eliminando producto"
+    </ResponseField>
+  </expandable>
+</ResponseField>

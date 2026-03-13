@@ -1,0 +1,519 @@
+---
+title: 'Account Management'
+description: 'Create and manage your Black Michi Studio account for a personalized shopping experience'
+---
+
+# Account Management
+
+Create and manage your account to enjoy a personalized shopping experience with saved information, order history, and faster checkout.
+
+## Benefits of Creating an Account
+
+**With a Black Michi Studio account, you can:**
+
+- 🚀 **Faster Checkout** - Save your contact information and shipping addresses
+- 📦 **Order History** - View all your past orders in one place
+- 🔄 **Easy Reordering** - Quickly reorder products you've purchased before
+- ⭐ **Product Reviews** - Leave reviews and ratings for products
+- 👤 **Profile Management** - Update your information anytime
+- 📧 **Order Updates** - Receive email notifications about your orders
+- 🎯 **Personalized Experience** - Get recommendations based on your purchases
+
+<Note>
+  You can also checkout as a guest without creating an account, but you'll miss out on these convenient features.
+</Note>
+
+## User Registration
+
+Create your account to start enjoying member benefits.
+
+### Accessing the Registration Page
+
+<Steps>
+  <Step title="Navigate to Register">
+    Click **"Registro"** (Register) in the header navigation, or visit `/register`
+  </Step>
+  
+  <Step title="Registration Form">
+    The registration page displays the Black Michi Studio branding with a clean, modern form
+  </Step>
+</Steps>
+
+### Registration Form Fields
+
+Complete the following information:
+
+#### 1. Full Name (Nombre completo)
+
+**Requirements:**
+- Your complete name (first and last name)
+- Minimum 2 characters
+- Only letters and spaces allowed
+
+**Example:** Juan Pérez González
+
+#### 2. Email Address (Correo electrónico)
+
+**Requirements:**
+- Valid email format (user@domain.com)
+- Must be unique (not already registered)
+- Used for login and order notifications
+
+**Example:** juan.perez@ejemplo.com
+
+#### 3. Password (Contraseña)
+
+**Requirements:**
+- Minimum 6 characters
+- Can include letters, numbers, and special characters
+- Protected with show/hide toggle (eye icon)
+
+<Tip>
+  Choose a strong password with a mix of letters, numbers, and symbols for better security.
+</Tip>
+
+#### 4. Terms and Conditions
+
+**Required:**
+- Check the box to accept Terms of Service and Privacy Policy
+- Registration cannot proceed without accepting terms
+
+### Completing Registration
+
+<Steps>
+  <Step title="Fill Form">
+    Enter all required information in the registration form
+  </Step>
+  
+  <Step title="Review Validation">
+    Real-time validation checks each field:
+    - Name validation (letters only, minimum length)
+    - Email format validation
+    - Password length validation
+    - Terms acceptance requirement
+    
+    Error messages appear below fields if validation fails
+  </Step>
+  
+  <Step title="Submit Registration">
+    Click **"REGISTRARME"** (Register Me) button
+    
+    The button shows a loading spinner: "Registrando..." while processing
+  </Step>
+  
+  <Step title="Success Confirmation">
+    On successful registration:
+    - Green success message appears: "¡Registro exitoso! Redirigiendo..."
+    - You're automatically logged in
+    - Redirected to home page after 2 seconds
+  </Step>
+</Steps>
+
+### Registration Process (Backend)
+
+When you register, the system:
+
+1. **Validates Input**: Checks all fields meet requirements
+2. **Email Uniqueness**: Verifies email isn't already registered
+3. **Password Hashing**: Securely encrypts your password using bcrypt
+4. **Creates User Record**: Stores in `usuarios` table with:
+   - User ID (auto-generated)
+   - Name
+   - Email (unique)
+   - Hashed password
+   - Role: `cliente` (client) by default
+   - Active status: `true`
+   - Created timestamp
+   - Created IP address (for security)
+5. **Auto-Login**: Generates authentication token
+6. **Welcome Email**: Sends confirmation (if configured)
+
+<Success>
+  Your account is now active and ready to use!
+</Success>
+
+## User Login
+
+Access your account to view orders and manage your profile.
+
+### Accessing the Login Page
+
+<Steps>
+  <Step title="Navigate to Login">
+    Click **"Iniciar Sesión"** (Login) in the header, or visit `/login`
+  </Step>
+  
+  <Step title="Login Form">
+    The login page displays with input fields for your credentials
+  </Step>
+</Steps>
+
+### Login Form Fields
+
+#### Email Address
+- Enter the email you registered with
+- Must match an existing account
+
+#### Password
+- Enter your account password
+- Use the eye icon to show/hide password
+- Case-sensitive
+
+### Logging In
+
+<Steps>
+  <Step title="Enter Credentials">
+    Type your email and password in the respective fields
+  </Step>
+  
+  <Step title="Remember Me (Optional)">
+    Check **"Recordarme"** (Remember Me) to stay logged in on this device
+  </Step>
+  
+  <Step title="Submit">
+    Click **"Iniciar sesión"** (Login) button
+    
+    The button shows "Ingresando..." while authenticating
+  </Step>
+  
+  <Step title="Successful Login">
+    After successful authentication:
+    - Auth token is saved to localStorage
+    - User info is stored in the session
+    - You're redirected based on role:
+      - **Admin users** → `/admin` dashboard
+      - **Client users** → `/` home page
+  </Step>
+</Steps>
+
+<Warning>
+  **Forgot Your Password?** Click "¿Olvidaste tu contraseña?" (Forgot password?) to reset it.
+</Warning>
+
+### Login Error Messages
+
+- **"El correo es obligatorio"** - Email field is empty
+- **"La contraseña es obligatoria"** - Password field is empty  
+- **"Credenciales inválidas o error de servidor"** - Wrong email/password or server issue
+- **"Error inesperado de servidor"** - Connection or server error
+
+## Alternative Login: Google OAuth
+
+The login page includes a **"Continuar con Google"** (Continue with Google) button.
+
+<Note>
+  Google OAuth login is currently in development and will display: "Login con Google estará disponible pronto" (Google login will be available soon).
+</Note>
+
+## User Profile Management
+
+Manage your account information after logging in.
+
+### Accessing Your Profile
+
+<Steps>
+  <Step title="Open User Menu">
+    Click on your name in the header navigation
+    
+    A dropdown menu appears with your account options
+  </Step>
+  
+  <Step title="Select Profile">
+    **For Client Users:**
+    - Click **"Mi Panel"** (My Panel) to access `/client`
+    
+    **For Admin Users:**
+    - Click **"Panel Admin"** to access `/admin`
+  </Step>
+</Steps>
+
+### Viewing Profile Information
+
+The client panel (`/api/client/perfil`) displays your account details:
+
+- **ID**: Your unique user ID
+- **Name** (nombre): Your full name
+- **Email**: Your registered email address
+- **Role** (rol): Account type (`cliente` or `admin`)
+- **Phone** (telefono): Contact phone number
+- **Address** (direccion): Saved shipping address
+- **Created At**: Account creation date
+
+### Updating Profile Information
+
+To update your profile:
+
+<Steps>
+  <Step title="Access Edit Mode">
+    Navigate to your profile/panel page
+  </Step>
+  
+  <Step title="Editable Fields">
+    You can update:
+    - **Name** (nombre): Full name
+    - **Phone** (telefono): Contact number  
+    - **Address** (direccion): Default shipping address
+  </Step>
+  
+  <Step title="Save Changes">
+    Click **"Actualizar Perfil"** or similar save button
+    
+    The system sends a PUT request to `/api/client/perfil`
+  </Step>
+  
+  <Step title="Confirmation">
+    Updated information is saved and displayed
+    
+    The `updated_at` timestamp is automatically updated
+  </Step>
+</Steps>
+
+<Note>
+  **Email cannot be changed** after registration for security reasons. Contact support if you need to update your email.
+</Note>
+
+### Profile Update (Backend)
+
+When updating your profile:
+
+1. **Authentication Check**: Verifies you're logged in
+2. **Input Validation**: Validates the updated fields
+3. **Database Update**: Updates `usuarios` table
+4. **Timestamp**: Sets `updated_at` to current time
+5. **Returns Updated Data**: Confirms changes with current profile info
+
+## User Roles
+
+Black Michi Studio has two user roles:
+
+### Cliente (Client) - Standard User
+
+**Permissions:**
+- Browse and purchase products
+- View own order history
+- Update own profile
+- Leave product reviews
+- Access client panel (`/client`)
+
+**Database:** `rol = 'cliente'` (default for new registrations)
+
+### Admin - Administrator
+
+**Permissions:**
+- All client permissions plus:
+- Access admin dashboard (`/admin`)
+- Manage products (create, edit, delete)
+- Manage categories
+- View all orders from all customers
+- Update order statuses
+- Manage featured products
+- Manage hero images
+- View sales analytics
+
+**Database:** `rol = 'admin'` (assigned manually in database)
+
+<Warning>
+  Admin role cannot be self-assigned and must be set in the database by a system administrator.
+</Warning>
+
+## Header Navigation (Logged In)
+
+When logged in, the header changes to show your account:
+
+**User Menu Display:**
+- User icon (👤)
+- Your name
+- Dropdown arrow
+
+**Menu Options:**
+
+**For Clients:**
+```
+👤 Mi Panel
+🚪 Cerrar Sesión
+```
+
+**For Admins:**
+```
+⚙️ Panel Admin
+🚪 Cerrar Sesión
+```
+
+### User Menu Actions
+
+**Mi Panel / Panel Admin:**
+- Opens your respective dashboard
+- Shows profile and order information
+
+**Cerrar Sesión (Logout):**
+- Clears authentication token
+- Removes user data from session
+- Redirects to home page
+- Cart remains (stored separately)
+
+## Logging Out
+
+To log out of your account:
+
+<Steps>
+  <Step title="Open User Menu">
+    Click your name in the header navigation
+  </Step>
+  
+  <Step title="Select Logout">
+    Click **"Cerrar Sesión"** (Logout)
+  </Step>
+  
+  <Step title="Logged Out">
+    You're immediately logged out and returned to the home page
+    
+    Authentication token is cleared from storage
+  </Step>
+</Steps>
+
+<Note>
+  Your shopping cart persists after logout since it's stored separately in localStorage.
+</Note>
+
+## Account Security
+
+### Password Security
+
+**Best Practices:**
+- Use at least 6 characters (more is better)
+- Combine uppercase, lowercase, numbers, and symbols
+- Don't reuse passwords from other sites
+- Never share your password
+
+**System Security:**
+- Passwords are hashed with bcrypt (10 rounds)
+- Original passwords never stored in plain text
+- Secure authentication with JWT tokens
+
+### Account Protection
+
+**Automatic Security Features:**
+- Session tokens expire after period of inactivity
+- IP address logged at registration for fraud detection
+- Failed login attempts can be monitored
+- HTTPS encryption for all data transmission
+
+**Manual Security Steps:**
+- Log out on shared computers
+- Use strong, unique passwords
+- Enable "Remember Me" only on personal devices
+- Report suspicious activity immediately
+
+## Email Verification
+
+The system supports email verification:
+
+**Database Field:** `email_verified` (boolean)
+- **false** - Email not verified (default)
+- **true** - Email confirmed
+
+<Note>
+  Email verification features may be implemented in future updates to enhance account security.
+</Note>
+
+## Account Status
+
+Your account has an active status:
+
+**Database Field:** `activo` (boolean)
+- **true** - Account is active and can be used (default)
+- **false** - Account is deactivated
+
+**Deactivated Accounts:**
+- Cannot log in
+- Cannot place orders  
+- Previous orders remain visible to admins
+- Can be reactivated by administrators
+
+<Tip>
+  If you need to temporarily disable your account, contact customer support.
+</Tip>
+
+## Troubleshooting Account Issues
+
+### Can't Log In
+
+**Problem:** Login fails with valid credentials
+
+**Solutions:**
+- Verify email is spelled correctly (case-insensitive)
+- Check password (case-sensitive)
+- Ensure Caps Lock is off
+- Try password reset if forgotten
+- Clear browser cache and cookies
+- Try different browser
+
+### Registration Email Already Exists
+
+**Problem:** "Email already registered" error
+
+**Solutions:**
+- Use login instead of registration
+- Try password reset if you forgot password
+- Use different email address
+- Contact support if you believe it's an error
+
+### Not Receiving Emails
+
+**Problem:** No confirmation or notification emails
+
+**Solutions:**
+- Check spam/junk folder
+- Verify email address in profile is correct
+- Add noreply@blackmichiestudio.com to contacts
+- Wait 15-30 minutes for delivery
+- Contact support if issue persists
+
+### Profile Won't Update
+
+**Problem:** Changes not saving to profile
+
+**Solutions:**
+- Ensure you're logged in
+- Check validation error messages
+- Verify all required fields are filled
+- Try refreshing page and editing again
+- Clear browser cache
+- Contact support if issue continues
+
+## Account Deletion
+
+<Warning>
+  Account deletion is permanent and cannot be undone.
+</Warning>
+
+To delete your account:
+
+1. Contact customer support
+2. Provide account verification (email, order history)
+3. Support will process deletion request
+4. All personal data will be removed per privacy policy
+5. Order history may be retained anonymously for business records
+
+## Privacy & Data
+
+**Your Data:**
+- Stored securely in encrypted database
+- Used only for order processing and account management  
+- Never sold or shared with third parties
+- Protected under Chilean data protection laws
+
+**You Control:**
+- View your data anytime in your profile
+- Update information as needed
+- Request data export (contact support)
+- Request account deletion
+
+For full details, see our Privacy Policy (Terms linked on login/register pages).
+
+## Next Steps
+
+Now that your account is set up:
+- Start [Shopping for Products](/user-guide/shopping)
+- Learn about [Cart & Checkout](/user-guide/cart-checkout)  
+- Track your purchases with [Order Tracking](/user-guide/order-tracking)

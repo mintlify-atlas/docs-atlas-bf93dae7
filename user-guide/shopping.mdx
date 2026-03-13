@@ -1,0 +1,263 @@
+---
+title: 'Shopping & Browsing Products'
+description: 'Learn how to browse, search, and explore products in the Black Michi Studio e-commerce platform'
+---
+
+# Shopping & Browsing Products
+
+Discover how to explore and find the perfect 3D printed products in the Black Michi Studio catalog.
+
+## Browsing the Home Page
+
+When you first visit the store, you'll see:
+
+- **Hero Section**: Featured promotions and hero images showcasing our latest offerings
+- **Category Cards**: Quick access to product categories like Vasos 3D, Placas Navi, and Figuras
+- **Popular Products**: A curated selection of trending items
+- **Secondary Hero Section**: Additional featured content
+
+## Navigating by Category
+
+### Desktop Navigation
+
+The header includes a category navigation bar:
+
+<Steps>
+  <Step title="Open Category Menu">
+    Click the **"COMPRAR POR CATEGORÍA"** button in the navigation bar. This opens a sidebar with all available categories.
+  </Step>
+  
+  <Step title="Browse Categories">
+    The sidebar displays:
+    - **Todos los Productos** - View all products
+    - **Vasos 3D** - Personalized 3D cups
+    - **Placas Navi** - Decorative Navi plaques
+    - **Figuras** - Collectible 3D figures
+  </Step>
+  
+  <Step title="Select a Category">
+    Click on any category name to filter products. The page will navigate to `/productos?categoria={categoryId}` showing only items from that category.
+  </Step>
+</Steps>
+
+### Quick Category Access
+
+Categories are also displayed directly in the header navigation bar for quick access. Simply click any category name to filter products instantly.
+
+<Note>
+  The navigation bar is scrollable on smaller screens to accommodate all categories.
+</Note>
+
+## Product List Page
+
+The product list (`/productos`) displays products in a responsive grid layout:
+
+### Product Cards
+
+Each product card shows:
+- **Product Image**: Hover to see alternate images (if available)
+- **Product Title**: Clear name of the item
+- **Star Rating**: Average customer rating (1-5 stars)
+- **Price**: Current price in CLP (Chilean Pesos)
+- **Add to Cart Button**: Quick add functionality (disabled if out of stock)
+
+### Filtering & Sorting
+
+The product list supports several filtering options:
+
+- **By Category**: Filter by selecting a category from the navigation
+- **By Search**: Use the search bar to find products by title or description
+- **By Price**: Filter products by minimum price
+- **By Rating**: Show only products with a specific star rating or higher
+
+**Sort Options:**
+- Newest first (default)
+- Price: Low to High
+- Price: High to Low
+- Name (A-Z)
+
+### Pagination
+
+Products are displayed 12 per page. Use the pagination controls at the bottom:
+- **Previous/Next Arrows**: Navigate between pages
+- **Page Number**: Shows current page number
+
+<Tip>
+  The pagination controls only appear when there are more than 12 products to display.
+</Tip>
+
+## Search Functionality
+
+To search for products:
+
+<Steps>
+  <Step title="Access Search">
+    Products can be filtered using the search parameter `?busqueda=query`
+  </Step>
+  
+  <Step title="Search Results">
+    The search looks through:
+    - Product titles
+    - Product descriptions
+    
+    Results update automatically to show matching products.
+  </Step>
+</Steps>
+
+## Viewing Product Details
+
+Click on any product card to view its detailed page (`/producto/{productId}`).
+
+### Product Detail Page Features
+
+**Image Gallery:**
+- Main product image with zoom functionality (hover to zoom in)
+- Thumbnail navigation for multiple images
+- Arrow controls to cycle through images
+- Image counter showing position (e.g., "1 / 3")
+
+**Product Information:**
+- Category badge
+- Product title
+- Average rating with review count
+- Stock availability indicator
+- Full product description
+- Current price (with previous price if discounted)
+- Discount percentage badge (if applicable)
+
+**Product Benefits:**
+- 📦 Envío en 3-5 días (Delivery in 3-5 days)
+- 🛡️ Garantía 30 días (30-day warranty)
+
+**Tabs Section:**
+- **Descripción**: Detailed product description and features
+- **Especificaciones**: Technical specifications (material, dimensions, print time)
+- **Reseñas**: Customer reviews and ratings
+
+<Warning>
+  You must be logged in to view and submit product reviews.
+</Warning>
+
+## Adding Products to Cart
+
+### From Product List
+
+<Steps>
+  <Step title="Find Your Product">
+    Browse or search for the product you want
+  </Step>
+  
+  <Step title="Click Add to Cart">
+    Click the **"Agregar al carrito"** button on the product card
+  </Step>
+  
+  <Step title="Confirmation">
+    The product is added with a quantity of 1. The cart icon in the header updates to show the item count.
+  </Step>
+</Steps>
+
+### From Product Detail Page
+
+<Steps>
+  <Step title="Select Quantity">
+    Use the quantity selector (+ and - buttons) to choose how many items you want. The maximum is limited by available stock.
+  </Step>
+  
+  <Step title="Add to Cart">
+    Click the **"Agregar al carrito"** button. The specified quantity will be added to your cart.
+  </Step>
+  
+  <Step title="Visual Feedback">
+    The button briefly changes color to confirm the action, and the cart count in the header updates.
+  </Step>
+</Steps>
+
+<Note>
+  **Stock Checking**: The system validates stock availability. If a product is out of stock, the "Add to Cart" button will be disabled and show "Sin stock" (Out of stock).
+</Note>
+
+## Viewing Your Cart
+
+### Cart Sidebar
+
+Click the shopping cart icon in the header to open the cart sidebar:
+
+**Cart Sidebar Features:**
+- List of all items in your cart
+- Product image and title
+- Unit price and quantity
+- Quantity controls (+ / - buttons)
+- Remove item button (trash icon)
+- Subtotal per item
+- Cart total
+- **"Ir a pagar"** (Go to checkout) button
+- **"Vaciar carrito"** (Empty cart) link
+
+### Updating Cart Items
+
+- **Increase Quantity**: Click the + button (limited by stock)
+- **Decrease Quantity**: Click the - button (minimum 1)
+- **Remove Item**: Click the trash icon
+- **Clear All**: Click "Vaciar carrito" at the bottom
+
+<Tip>
+  Your cart is stored in your browser's local storage, so items persist even if you refresh the page or return later.
+</Tip>
+
+## Stock Management
+
+The platform actively tracks inventory:
+
+- **In Stock**: Products show "✓ En stock" and are available for purchase
+- **Low Stock**: The available quantity is displayed (e.g., "5 disponibles")
+- **Out of Stock**: Products show "✗ Agotado" and cannot be added to cart
+- **Cart Validation**: When checking out, the system verifies stock is still available
+
+## Product Reviews
+
+### Viewing Reviews
+
+On the product detail page, click the **"Reseñas"** tab to see:
+- Customer ratings (1-5 stars)
+- Written reviews with reviewer name and date
+- Average rating calculated across all reviews
+
+### Writing a Review
+
+<Steps>
+  <Step title="Login Required">
+    You must be logged in to write reviews. If not logged in, you'll see a prompt to log in.
+  </Step>
+  
+  <Step title="Access Review Form">
+    Go to the "Reseñas" tab on a product page
+  </Step>
+  
+  <Step title="Rate the Product">
+    Click on the stars to select your rating (1-5 stars)
+  </Step>
+  
+  <Step title="Write Your Review">
+    Enter your comments in the text area, sharing your experience with the product
+  </Step>
+  
+  <Step title="Submit">
+    Click **"Publicar reseña"** (Publish review) to submit. Your review will appear in the reviews list.
+  </Step>
+</Steps>
+
+## Related Products
+
+At the bottom of each product detail page, you'll find:
+- **Productos relacionados**: Products from the same category
+- **"Ver todos →"** link: View all products in that category
+
+<Tip>
+  Use related products to discover similar items and compare options before making your purchase.
+</Tip>
+
+## Next Steps
+
+Once you've added products to your cart:
+- Proceed to [Cart & Checkout](/user-guide/cart-checkout) to complete your purchase
+- Create an [Account](/user-guide/account-management) to save your information and track orders

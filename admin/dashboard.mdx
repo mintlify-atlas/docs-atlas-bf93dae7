@@ -1,0 +1,162 @@
+---
+title: 'Admin Dashboard'
+description: 'Overview of the Black Michi Studio admin dashboard and key statistics'
+---
+
+The admin dashboard provides a comprehensive overview of your e-commerce platform's performance, including sales, orders, users, and product inventory.
+
+## Overview
+
+The dashboard displays real-time statistics and key metrics to help you monitor your store's health at a glance.
+
+### Access Requirements
+
+<Warning>
+  Admin dashboard access requires:
+  - Valid JWT authentication token
+  - User role set to `admin` in the database
+  - Both `requireAuth` and `requireAdmin` middleware checks pass
+</Warning>
+
+## Dashboard Statistics
+
+The dashboard fetches comprehensive statistics from `GET /admin/stats`.
+
+### Available Metrics
+
+The endpoint returns four key performance indicators:
+
+```json
+{
+  "totalVentas": 1250000,
+  "totalPedidos": 45,
+  "totalUsuarios": 128,
+  "totalProductos": 32
+}
+```
+
+| Metric | Description | Calculation |
+|--------|-------------|-------------|
+| `totalVentas` | Total revenue | Sum of all non-canceled orders |
+| `totalPedidos` | Order count | Total number of orders in system |
+| `totalUsuarios` | User count | Total registered users |
+| `totalProductos` | Product count | Total products in catalog |
+
+### Implementation Details
+
+The stats endpoint is defined in `backend/controllers/adminController.js:64-87`:
+
+```javascript
+exports.getStats = async (req, res) => {
+    const ventasResult = await pool.query(`
+        SELECT COALESCE(SUM(total), 0) AS total_ventas
+        FROM pedidos
+        WHERE estado != 'cancelado'
+    `);
+
+    const pedidosResult = await pool.query(
+        `SELECT COUNT(*) AS total_pedidos FROM pedidos`
+    );
+    const usuariosResult = await pool.query(
+        `SELECT COUNT(*) AS total_usuarios FROM usuarios`
+    );
+    const productosResult = await pool.query(
+        `SELECT COUNT(*) AS total_productos FROM productos`
+    );
+
+    res.json({
+        totalVentas: parseFloat(ventasResult.rows[0].total_ventas),
+        totalPedidos: parseInt(pedidosResult.rows[0].total_pedidos),
+        totalUsuarios: parseInt(usuariosResult.rows[0].total_usuarios),
+        totalProductos: parseInt(productosResult.rows[0].total_productos)
+    });
+};
+```
+
+## Frontend Integration
+
+The admin dashboard uses the `useAdminStats` hook located in `frontend/src/admin/hooks/useAdminStats.js`:
+
+```javascript
+import useAdminStats from "../hooks/useAdminStats";
+
+function Dashboard() {
+    const { stats, loading, refetch } = useAdminStats();
+
+    return (
+        <div>
+            <h1>Total Sales: ${stats.totalSales}</h1>
+            <p>Orders: {stats.orders}</p>
+            <p>Users: {stats.users}</p>
+            <p>Products: {stats.products}</p>
+        </div>
+    );
+}
+```
+
+### Hook API
+
+The `useAdminStats` hook provides:
+
+- `stats` - Object containing all dashboard metrics
+- `loading` - Boolean indicating data fetch status
+- `refetch` - Function to manually refresh statistics
+
+## API Endpoint
+
+### Get Dashboard Statistics
+
+```http
+GET /admin/stats
+```
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:**
+```json
+{
+  "totalVentas": 1250000.00,
+  "totalPedidos": 45,
+  "totalUsuarios": 128,
+  "totalProductos": 32
+}
+```
+
+**Status Codes:**
+- `200` - Successfully retrieved statistics
+- `401` - Unauthorized (missing or invalid token)
+- `403` - Forbidden (user is not admin)
+- `500` - Server error
+
+## Dashboard Components
+
+The dashboard typically displays:
+
+1. **Sales Overview** - Total revenue from completed orders
+2. **Order Summary** - Total orders across all statuses
+3. **User Base** - Total registered users
+4. **Product Catalog** - Total products in inventory
+
+<Note>
+  Statistics are calculated in real-time from the database. For high-traffic sites, consider implementing caching to improve performance.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Manage Products" icon="box" href="/admin/product-management">
+    Add, edit, and remove products from your catalog
+  </Card>
+  <Card title="Manage Orders" icon="shopping-cart" href="/admin/order-management">
+    Process orders and update fulfillment status
+  </Card>
+  <Card title="Manage Users" icon="users" href="/admin/user-management">
+    View and manage user accounts and permissions
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/authentication">
+    Complete API documentation
+  </Card>
+</CardGroup>

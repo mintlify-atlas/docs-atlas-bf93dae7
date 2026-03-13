@@ -1,97 +1,76 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Welcome to Black Michi Studio"
+description: "Full-stack e-commerce platform for 3D product sales with integrated payment processing and order management"
 ---
 
-## Setting up
+## Introduction
 
-Get your documentation site up and running in minutes.
+Black Michi Studio is a modern e-commerce platform built with React and Express, designed to deliver a seamless shopping experience for 3D products. The platform features integrated payment processing through Flow, comprehensive order management, and performance optimizations for fast loading times.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running in minutes with our step-by-step guide
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Architecture" icon="building" href="/architecture">
+    Understand the full-stack architecture and design decisions
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="User Guide" icon="book-open" href="/user-guide/shopping">
+    Learn how to use the platform as a customer
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Admin Guide" icon="user-shield" href="/admin/dashboard">
+    Manage products, orders, and users from the admin dashboard
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Key Features
 
-Everything you need to create world-class documentation.
+Black Michi Studio provides everything you need to run a modern e-commerce business.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+<CardGroup cols={3}>
+  <Card title="Product Catalog" icon="boxes-stacked" href="/features/product-catalog">
+    Organize products with categories, images, and detailed descriptions
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
+  <Card title="Payment Integration" icon="credit-card" href="/features/payment-integration">
+    Secure payment processing with Flow payment gateway
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
+  <Card title="Reviews & Ratings" icon="star" href="/features/reviews-ratings">
+    Customer reviews and ratings for social proof
   </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="User Authentication" icon="lock" href="/api/authentication">
+    JWT and Google OAuth for secure user management
   </Card>
-</Columns>
+  <Card title="Order Tracking" icon="truck" href="/user-guide/order-tracking">
+    Real-time order status tracking from payment to delivery
+  </Card>
+  <Card title="Admin Dashboard" icon="chart-line" href="/admin/dashboard">
+    Comprehensive admin tools for managing your store
+  </Card>
+</CardGroup>
 
-## Need inspiration?
+## Technology Stack
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Built with modern technologies for performance and scalability.
+
+- **Frontend**: React 18, Vite, Tailwind CSS, React Router
+- **Backend**: Node.js, Express, PostgreSQL
+- **Authentication**: JWT, Google OAuth, bcrypt
+- **Payments**: Flow payment gateway integration
+- **Storage**: Supabase for media assets
+- **Deployment**: Docker, Render-ready configuration
+
+## Quick Links
+
+<CardGroup cols={2}>
+  <Card title="Local Setup" icon="laptop-code" href="/deployment/local-setup">
+    Set up the development environment on your machine
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/authentication">
+    Explore the complete API documentation
+  </Card>
+  <Card title="Docker Deployment" icon="docker" href="/deployment/docker">
+    Deploy with Docker Compose for production
+  </Card>
+  <Card title="Render Deployment" icon="cloud" href="/deployment/render">
+    Deploy to Render with our step-by-step guide
+  </Card>
+</CardGroup>

@@ -1,0 +1,131 @@
+---
+title: Introduction
+description: Welcome to Black Michi Studio - A full-stack e-commerce platform for selling 3D printed products and custom merchandise
+---
+
+# Welcome to Black Michi Studio
+
+Black Michi Studio is a modern, full-stack e-commerce platform built specifically for selling 3D printed products, custom merchandise, and collectibles. The platform features a React-based frontend with a robust Node.js/Express backend, PostgreSQL database, and integrated payment processing through Flow.
+
+## What is Black Michi Studio?
+
+Black Michi Studio is a complete e-commerce solution that enables you to:
+
+- **Sell 3D Printed Products**: Showcase and sell custom 3D printed items like personalized glasses, decorative plaques, and collectible figures
+- **Manage Inventory**: Track product stock, categories, and pricing with real-time updates
+- **Process Payments**: Integrate with Flow payment gateway for secure Chilean payment processing
+- **Handle Orders**: Complete order management from cart to delivery tracking
+- **Admin Dashboard**: Full-featured admin panel for managing products, orders, and customer data
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get your Black Michi Studio instance running in minutes
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/architecture">
+    Learn about the technical architecture and stack
+  </Card>
+</CardGroup>
+
+## Key Features
+
+### Frontend Capabilities
+
+- **Modern React UI**: Built with React 18, Vite, and Tailwind CSS
+- **Responsive Design**: Mobile-first design that works on all devices
+- **Product Browsing**: Category-based navigation, search, and filtering
+- **Shopping Cart**: Persistent cart with real-time calculations
+- **User Authentication**: Secure login and registration with JWT tokens
+- **Payment Integration**: Seamless Flow payment gateway integration
+- **Order Tracking**: Real-time order status updates
+- **Product Reviews**: Customer ratings and review system
+
+### Backend Capabilities
+
+- **RESTful API**: Clean API architecture with Express.js
+- **PostgreSQL Database**: Robust relational database with optimized queries
+- **Image Processing**: Automatic image optimization with Sharp
+- **File Upload**: Multer-based file upload for product images
+- **Authentication**: JWT-based authentication with bcrypt password hashing
+- **Payment Processing**: Flow payment gateway integration with webhook handling
+- **Stock Management**: Automatic stock deduction on successful payments
+- **Admin Controls**: Role-based access control for admin operations
+
+## Technology Stack
+
+<CodeGroup>
+
+```json Frontend Dependencies
+{
+  "react": "^18.2.0",
+  "react-router-dom": "^6.30.1",
+  "axios": "^1.12.2",
+  "tailwindcss": "^3.4.17",
+  "vite": "^7.1.7",
+  "lucide-react": "^0.544.0",
+  "swiper": "^12.0.2"
+}
+```
+
+```json Backend Dependencies
+{
+  "express": "^4.22.1",
+  "pg": "^8.16.3",
+  "bcrypt": "^6.0.0",
+  "jsonwebtoken": "^9.0.2",
+  "multer": "^2.0.2",
+  "sharp": "^0.34.5",
+  "cors": "^2.8.6",
+  "compression": "^1.7.4"
+}
+```
+
+</CodeGroup>
+
+## Product Categories
+
+Black Michi Studio comes pre-configured with three main product categories:
+
+<CardGroup cols={3}>
+  <Card title="Vasos 3D" icon="glass-water">
+    Custom 3D printed glasses and drinkware
+  </Card>
+  <Card title="Navi Plaques" icon="house">
+    Decorative plaques and wall art
+  </Card>
+  <Card title="Figures" icon="user-astronaut">
+    Collectible 3D printed figures
+  </Card>
+</CardGroup>
+
+## Database Schema Highlights
+
+The platform uses a comprehensive PostgreSQL schema with the following core tables:
+
+- **usuarios**: User accounts with role-based access (admin/cliente)
+- **categorias**: Product categories with custom styling
+- **productos**: Product catalog with pricing, stock, and images
+- **pedidos**: Orders with Flow payment integration
+- **pedido_items**: Order line items preserving product details at purchase time
+- **flow_webhooks**: Payment webhook logging for audit trails
+- **valoraciones**: Product reviews and ratings
+- **featured_productos**: Featured product management
+- **hero_images**: Homepage hero image configuration
+
+## Use Cases
+
+<Note>
+Black Michi Studio is perfect for:
+- Small to medium e-commerce businesses
+- 3D printing shops and makerspaces
+- Custom merchandise vendors
+- Artists selling collectibles
+- Anyone needing a Chilean-market e-commerce solution
+</Note>
+
+## Getting Started
+
+Ready to set up your own Black Michi Studio instance? Head over to the [Quickstart Guide](/quickstart) to get your development environment running, or explore the [Architecture Documentation](/architecture) to understand how everything works together.
+
+<Card title="Need Help?" icon="question">
+  Check out the full source code and documentation in your project repository.
+</Card>

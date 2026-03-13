@@ -1,0 +1,221 @@
+---
+title: 'Categories'
+description: 'Product category endpoints'
+---
+
+## List All Categories
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/categorias
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/categorias');
+const categories = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get('https://api.blackmichistudio.com/api/categorias')
+categories = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/categorias
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (public endpoint)
+</ParamField>
+
+### Response
+
+Returns an array of all categories, ordered alphabetically by name.
+
+<ResponseField name="categories" type="array">
+  <expandable>
+    <ResponseField name="id" type="integer">
+      Category unique identifier
+    </ResponseField>
+    <ResponseField name="nombre" type="string">
+      Category name
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Accesorios"
+  },
+  {
+    "id": 2,
+    "nombre": "Ropa"
+  },
+  {
+    "id": 3,
+    "nombre": "Tecnología"
+  }
+]
+```
+
+### Error Responses
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error al obtener categorías"
+    </ResponseField>
+    <ResponseField name="message" type="string">
+      Detailed error message
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Get Products by Category
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/categorias/1
+```
+
+```javascript JavaScript
+const categoryId = 1;
+const response = await fetch(`https://api.blackmichistudio.com/api/categorias/${categoryId}`);
+const products = await response.json();
+```
+
+```python Python
+import requests
+
+category_id = 1
+response = requests.get(f'https://api.blackmichistudio.com/api/categorias/{category_id}')
+products = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/categorias/:id
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (public endpoint)
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Category ID
+</ParamField>
+
+### Response
+
+Returns an array of active products in the specified category, ordered by creation date (newest first).
+
+<ResponseField name="products" type="array">
+  <expandable>
+    <ResponseField name="id" type="integer">
+      Product unique identifier
+    </ResponseField>
+    <ResponseField name="titulo" type="string">
+      Product title
+    </ResponseField>
+    <ResponseField name="precio" type="number">
+      Product price in CLP
+    </ResponseField>
+    <ResponseField name="imagen_principal" type="string">
+      Main product image URL
+    </ResponseField>
+    <ResponseField name="categoria_id" type="integer">
+      Category identifier (matches requested category)
+    </ResponseField>
+    <ResponseField name="promedio_calificacion" type="number">
+      Average product rating (1-5)
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 15,
+    "titulo": "Polera Estampada",
+    "precio": 15990,
+    "imagen_principal": "https://storage.example.com/productos/polera-estampada-card.jpg",
+    "categoria_id": 2,
+    "promedio_calificacion": 4.5
+  },
+  {
+    "id": 12,
+    "titulo": "Jeans Slim Fit",
+    "precio": 29990,
+    "imagen_principal": "https://storage.example.com/productos/jeans-slim-card.jpg",
+    "categoria_id": 2,
+    "promedio_calificacion": 4.8
+  }
+]
+```
+
+### Filters Applied
+
+- Only returns products where `activo = true`
+- Only returns products in the specified category
+- Orders by creation date (newest first)
+
+### Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Invalid category ID
+  <expandable>
+    <ResponseField name="error" type="string">
+      "ID de categoría inválido"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error al obtener productos de la categoría"
+    </ResponseField>
+    <ResponseField name="message" type="string">
+      Detailed error message
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Notes
+
+### Category Creation
+
+Categories are automatically created when products are added or updated with a new category name. There is no dedicated category creation endpoint.
+
+### Empty Categories
+
+The list all categories endpoint returns all categories, even if they have no products. Use the get products by category endpoint to check if a category has products.

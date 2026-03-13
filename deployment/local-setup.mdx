@@ -1,0 +1,263 @@
+---
+title: 'Local Development Setup'
+description: 'Set up Black Michi Studio e-commerce platform on your local machine'
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+- **Node.js** 20.x or higher
+- **PostgreSQL** 16 or higher
+- **npm**, **yarn**, or **pnpm** package manager
+
+## Clone the Repository
+
+First, clone the project repository:
+
+```bash
+git clone <repository-url>
+cd blackmichiestudio
+```
+
+## Backend Setup
+
+<Steps>
+  <Step title="Navigate to backend directory">
+    ```bash
+    cd backend
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    <CodeGroup>
+      ```bash npm
+      npm install
+      ```
+
+      ```bash yarn
+      yarn install
+      ```
+
+      ```bash pnpm
+      pnpm install
+      ```
+    </CodeGroup>
+
+    <Warning>
+      The backend uses `sharp` for image processing, which requires native dependencies. On Alpine Linux or Docker, you may need to install additional system libraries (`python3`, `make`, `g++`, `vips-dev`).
+    </Warning>
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the `backend` directory with the following variables:
+
+    ```bash
+    # Database Configuration
+    DB_HOST=localhost
+    DB_PORT=5432
+    DB_NAME=blackmichiestudio
+    DB_USER=postgres
+    DB_PASSWORD=your_password
+
+    # Alternative: Use DATABASE_URL for Render/external databases
+    # DATABASE_URL=postgresql://user:password@host:5432/database
+
+    # Server Configuration
+    PORT=3000
+    NODE_ENV=development
+
+    # Frontend URL for CORS
+    FRONTEND_URL=http://localhost:5173
+
+    # Authentication
+    JWT_SECRET=your_jwt_secret_key_here
+
+    # Google OAuth (optional)
+    GOOGLE_CLIENT_ID=your_google_client_id
+    GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+    # Supabase Storage (optional)
+    SUPABASE_URL=your_supabase_url
+    SUPABASE_KEY=your_supabase_key
+
+    # Payment Gateway (optional)
+    FLOW_API_KEY=your_flow_api_key
+    ```
+
+    <Warning>
+      **Required variables:** `DB_HOST`, `DB_NAME`, `DB_USER`, and `DB_PASSWORD` are critical for database connectivity. The application will warn you if these are missing.
+    </Warning>
+  </Step>
+
+  <Step title="Set up PostgreSQL database">
+    Create the database:
+
+    ```bash
+    psql -U postgres
+    CREATE DATABASE blackmichiestudio;
+    \q
+    ```
+
+    Run any initialization scripts if provided in the `db` directory.
+  </Step>
+
+  <Step title="Start the backend server">
+    <CodeGroup>
+      ```bash npm
+      npm run dev
+      ```
+
+      ```bash yarn
+      yarn dev
+      ```
+
+      ```bash pnpm
+      pnpm dev
+      ```
+    </CodeGroup>
+
+    The backend will start on `http://localhost:3000`. You should see:
+
+    ```
+    ╔════════════════════════════════════════════════════════════╗
+    ║                    🚀 BACKEND INICIADO 🚀                  ║
+    ║                   VERSIÓN: CORS ULTRA 2.0                 ║
+    ║              Todos los orígenes permitidos ✅              ║
+    ╚════════════════════════════════════════════════════════════╝
+
+    ✅ Pool de conexión a BD inicializado
+    ✅ Conectado a PostgreSQL
+    ```
+  </Step>
+</Steps>
+
+## Frontend Setup
+
+<Steps>
+  <Step title="Navigate to frontend directory">
+    Open a new terminal and navigate to the frontend:
+
+    ```bash
+    cd frontend
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    <CodeGroup>
+      ```bash npm
+      npm install
+      ```
+
+      ```bash yarn
+      yarn install
+      ```
+
+      ```bash pnpm
+      pnpm install
+      ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `.env` file in the `frontend` directory:
+
+    ```bash
+    # API Configuration
+    VITE_API_BASE_URL=http://localhost:3000
+    ```
+
+    This tells the frontend where to find the backend API.
+  </Step>
+
+  <Step title="Start the development server">
+    <CodeGroup>
+      ```bash npm
+      npm run dev
+      ```
+
+      ```bash yarn
+      yarn dev
+      ```
+
+      ```bash pnpm
+      pnpm dev
+      ```
+    </CodeGroup>
+
+    The frontend will start on `http://localhost:5173` (Vite's default port).
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Test that everything is working:
+
+1. **Backend Health Check**
+   ```bash
+   curl http://localhost:3000/health
+   ```
+
+   Expected response:
+   ```json
+   {
+     "status": "healthy",
+     "timestamp": "2026-03-13T10:00:00.000Z",
+     "uptime": 123
+   }
+   ```
+
+2. **Frontend Access**
+   Open your browser and navigate to `http://localhost:5173`. The application should load successfully.
+
+3. **API Communication**
+   Open the browser console (F12) and check for:
+   ```
+   🔍 VITE_API_BASE_URL: http://localhost:3000
+   🔍 Final API URL: http://localhost:3000/api
+   ```
+
+## Troubleshooting
+
+### Database Connection Failed
+
+**Error:** `❌ Error inesperado en PostgreSQL`
+
+**Solutions:**
+- Verify PostgreSQL is running: `pg_isready -U postgres`
+- Check your database credentials in `.env`
+- Ensure the database `blackmichiestudio` exists
+- Check PostgreSQL logs for connection errors
+
+### Port Already in Use
+
+**Error:** `EADDRINUSE: address already in use :::3000`
+
+**Solutions:**
+- Kill the process using the port: `lsof -ti:3000 | xargs kill -9`
+- Or change the `PORT` in your `.env` file
+
+### CORS Errors
+
+**Error:** "Not allowed by CORS"
+
+**Solutions:**
+- Verify `FRONTEND_URL` is set correctly in backend `.env`
+- Verify `VITE_API_BASE_URL` is set correctly in frontend `.env`
+- Restart both backend and frontend servers
+- Clear browser cache and cookies
+
+### Sharp/Native Module Errors
+
+**Error:** Issues with `sharp` module installation
+
+**Solutions:**
+- On macOS: Ensure Xcode Command Line Tools are installed
+- On Linux: Install build essentials: `sudo apt-get install build-essential`
+- Rebuild native modules: `npm rebuild sharp`
+
+## Next Steps
+
+- [Deploy with Docker Compose](/deployment/docker)
+- [Deploy to Render](/deployment/render)
+- [API Documentation](/api/authentication)

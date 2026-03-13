@@ -1,0 +1,516 @@
+---
+title: 'User Management'
+description: 'Managing users, roles, and permissions in the admin panel'
+---
+
+Manage user accounts, assign roles, and control access permissions for the Black Michi Studio platform.
+
+## Overview
+
+The user management system allows admins to view all registered users, modify user roles, and manage user accounts. All user operations require admin authentication.
+
+<Warning>
+  All user management operations require:
+  - Valid JWT authentication token
+  - User role must be `admin`
+  - Both `requireAuth` and `requireAdmin` middleware
+</Warning>
+
+## User Schema
+
+Users are stored in the `usuarios` table with the following structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | SERIAL | Primary key |
+| `nombre` | VARCHAR(100) | User's full name |
+| `email` | VARCHAR(100) | Email address (unique) |
+| `password` | VARCHAR(255) | Bcrypt hashed password |
+| `rol` | VARCHAR(20) | User role: `admin` or `cliente` |
+| `telefono` | VARCHAR(20) | Phone number |
+| `direccion` | TEXT | Address |
+| `email_verified` | BOOLEAN | Email verification status |
+| `created_ip` | VARCHAR(45) | Registration IP address |
+| `activo` | BOOLEAN | Account active status |
+| `created_at` | TIMESTAMP | Registration date |
+| `updated_at` | TIMESTAMP | Last update timestamp |
+
+Defined in `backend/schema.sql:15-28`.
+
+## User Roles
+
+The platform supports two user roles with different permission levels:
+
+### Role Types
+
+| Role | Value | Description | Permissions |
+|------|-------|-------------|-------------|
+| Admin | `admin` | Administrator | Full access to all admin endpoints and operations |
+| Client | `cliente` | Customer | Access to customer-facing features only |
+
+<Note>
+  Role values are enforced via database CHECK constraint: `CHECK (rol IN ('admin', 'cliente'))`
+</Note>
+
+### Default Role
+
+New users are assigned the `cliente` role by default during registration:
+
+```sql
+rol VARCHAR(20) DEFAULT 'cliente'
+```
+
+## Authentication and Authorization
+
+The admin authentication system uses JWT tokens with role-based access control.
+
+### Authentication Middleware
+
+Implemented in `backend/middleware/auth.js`:
+
+#### requireAuth Middleware
+
+Validates JWT token and loads user data:
+
+```javascript
+async function requireAuth(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ error: 'No autorizado' });
+
+  const token = auth.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Load full user data from database
+    const result = await pool.query(
+      'SELECT id, nombre, email, rol FROM usuarios WHERE id = $1',
+      [decoded.id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(401).json({ error: 'Usuario no encontrado' });
+    }
+
+    req.user = result.rows[0]; // Sets id, nombre, email, rol
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token inválido' });
+  }
+}
+```
+
+#### requireAdmin Middleware
+
+Verifies user has admin role:
+
+```javascript
+function requireAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(401).json({ error: 'No autenticado' });
+  }
+  if (req.user.rol !== 'admin') {
+    return res.status(403).json({ error: 'Solo admin' });
+  }
+  next();
+}
+```
+
+### Middleware Chain
+
+All admin routes use both middleware functions:
+
+```javascript
+router.get(
+  "/usuarios",
+  requireAuth,      // 1. Verify token and load user
+  requireAdmin,     // 2. Verify admin role
+  adminController.getAllUsers
+);
+```
+
+## Managing Users
+
+### Viewing All Users
+
+<Steps>
+  <Step title="Fetch user list">
+    Call `GET /admin/usuarios` to retrieve all registered users.
+
+    ```javascript
+    const { data } = await api.get("/admin/usuarios");
+    ```
+  </Step>
+
+  <Step title="Display user information">
+    Users are returned with key account details (password excluded).
+
+    ```json
+    [
+      {
+        "id": 1,
+        "nombre": "Admin Principal",
+        "email": "admin@blackmichiestudio.com",
+        "rol": "admin",
+        "created_at": "2026-01-15T08:00:00Z"
+      },
+      {
+        "id": 2,
+        "nombre": "Juan Pérez",
+        "email": "juan@example.com",
+        "rol": "cliente",
+        "created_at": "2026-02-20T14:30:00Z"
+      }
+    ]
+    ```
+  </Step>
+</Steps>
+
+Implemented in `backend/controllers/adminController.js:93-107`:
+
+```javascript
+exports.getAllUsers = async (req, res) => {
+    const result = await pool.query(`
+        SELECT id, nombre, email, rol, created_at
+        FROM usuarios
+        ORDER BY created_at DESC
+    `);
+
+    res.json(result.rows);
+};
+```
+
+<Note>
+  Password hashes are never returned by user endpoints for security.
+</Note>
+
+### Updating User Roles
+
+<Steps>
+  <Step title="Select user">
+    Identify the user whose role you want to change.
+
+    ```javascript
+    const userId = 5;
+    ```
+  </Step>
+
+  <Step title="Choose new role">
+    Select either `admin` or `cliente`.
+
+    ```javascript
+    const newRole = "admin"; // or "cliente"
+    ```
+  </Step>
+
+  <Step title="Submit role update">
+    Call the update endpoint with the new role.
+
+    ```javascript
+    await api.put(`/admin/usuarios/${userId}/rol`, {
+      rol: newRole
+    });
+    ```
+  </Step>
+
+  <Step title="Verify update">
+    The user's permissions will immediately reflect the new role.
+  </Step>
+</Steps>
+
+Implemented in `backend/controllers/adminController.js:109-125`:
+
+```javascript
+exports.updateUserRole = async (req, res) => {
+    const { id } = req.params;
+    const { rol } = req.body;
+
+    await pool.query(
+        `UPDATE usuarios SET rol = $1 WHERE id = $2`,
+        [rol, id]
+    );
+
+    res.json({ ok: true });
+};
+```
+
+<Warning>
+  Changing a user's role immediately affects their access permissions. Admin users gain full access to all admin endpoints, while cliente users lose admin access.
+</Warning>
+
+### Deleting Users
+
+<Warning>
+  **DESTRUCTIVE OPERATION**: Deleting a user permanently removes their account and may affect:
+  - Order history (orders will have null `usuario_id`)
+  - Any user-created content
+  - Authentication tokens will be invalidated
+  
+  This action cannot be undone.
+</Warning>
+
+<Steps>
+  <Step title="Confirm deletion">
+    Always show a confirmation dialog with clear warnings.
+
+    ```javascript
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete user ${userName}? This cannot be undone.`
+    );
+    if (!confirmDelete) return;
+    ```
+  </Step>
+
+  <Step title="Call delete endpoint">
+    Send DELETE request with user ID.
+
+    ```javascript
+    await api.delete(`/admin/usuarios/${userId}`);
+    ```
+  </Step>
+
+  <Step title="Refresh user list">
+    Reload the user list to reflect the deletion.
+
+    ```javascript
+    await fetchUsers();
+    ```
+  </Step>
+</Steps>
+
+Implemented in `backend/controllers/adminController.js:127-139`:
+
+```javascript
+exports.deleteUser = async (req, res) => {
+    const { id } = req.params;
+
+    await pool.query(`DELETE FROM usuarios WHERE id = $1`, [id]);
+
+    res.json({ ok: true });
+};
+```
+
+## Database Constraints
+
+The usuarios table enforces several important constraints:
+
+### Unique Email
+
+```sql
+email VARCHAR(100) NOT NULL UNIQUE
+```
+
+Each email address can only be registered once.
+
+### Role Validation
+
+```sql
+rol VARCHAR(20) DEFAULT 'cliente' CHECK (rol IN ('admin', 'cliente'))
+```
+
+Only `admin` and `cliente` values are accepted.
+
+### Foreign Key Relationships
+
+Users are referenced by:
+- `pedidos.usuario_id` - Orders placed by user (SET NULL on delete)
+- `valoraciones.usuario_id` - Product reviews (SET NULL on delete)
+
+<Note>
+  When a user is deleted, their orders and reviews remain in the database with null `usuario_id` to preserve historical data.
+</Note>
+
+## Seed Data
+
+The database includes default users in `backend/schema.sql:210-215`:
+
+```sql
+INSERT INTO usuarios (nombre, email, password, rol)
+VALUES
+  ('Admin Principal', 'admin@blackmichiestudio.com', 
+   '$2b$10$rQZ8K9mN2pL5vX7wY3hJ6t', 'admin'),
+  ('Cliente Ejemplo', 'cliente@ejemplo.com', 
+   '$2b$10$rQZ8K9mN2pL5vX7wY3hJ6t', 'cliente')
+ON CONFLICT (email) DO NOTHING;
+```
+
+## Frontend Integration
+
+The admin panel uses the `useUsers` hook (currently with mock data):
+
+```javascript
+import useUsers from "../hooks/useUsers";
+
+function UserManagement() {
+  const { users, loading } = useUsers();
+
+  return (
+    <div>
+      {users.map(user => (
+        <div key={user.id}>
+          <h3>{user.name}</h3>
+          <p>Role: {user.role}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+<Note>
+  The `useUsers` hook in `frontend/src/admin/hooks/useUsers.js` currently returns mock data. Update it to call the actual API endpoints for production use.
+</Note>
+
+## API Endpoints Summary
+
+### GET /admin/usuarios
+
+Retrieve all users (excluding passwords).
+
+**Route:** `backend/routes/admin.js:79-84`
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "nombre": "Admin Principal",
+    "email": "admin@blackmichiestudio.com",
+    "rol": "admin",
+    "created_at": "2026-01-15T08:00:00Z"
+  }
+]
+```
+
+**Status Codes:**
+- `200` - Successfully retrieved users
+- `401` - Unauthorized (missing or invalid token)
+- `403` - Forbidden (user is not admin)
+- `500` - Server error
+
+### PUT /admin/usuarios/:id/rol
+
+Update a user's role.
+
+**Route:** `backend/routes/admin.js:86-91`
+
+**Parameters:**
+- `id` - User ID
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Body:**
+```json
+{
+  "rol": "admin"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "ok": true
+}
+```
+
+**Status Codes:**
+- `200` - Role updated successfully
+- `401` - Unauthorized
+- `403` - Forbidden (not admin)
+- `500` - Server error
+
+<Warning>
+  Role must be either `admin` or `cliente`. Invalid values will be rejected by the database CHECK constraint.
+</Warning>
+
+### DELETE /admin/usuarios/:id
+
+<Warning>
+  Permanently delete a user account. This action cannot be undone and may affect order history and related data.
+</Warning>
+
+**Route:** `backend/routes/admin.js:93-98`
+
+**Parameters:**
+- `id` - User ID
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+```json
+{
+  "ok": true
+}
+```
+
+**Status Codes:**
+- `200` - User deleted successfully
+- `401` - Unauthorized
+- `403` - Forbidden (not admin)
+- `500` - Server error
+
+## Security Best Practices
+
+1. **Never expose passwords** - API responses exclude password hashes
+2. **Validate role changes** - Ensure only valid roles are assigned
+3. **Confirm destructive actions** - Require confirmation for user deletion
+4. **Audit admin actions** - Log role changes and deletions
+5. **Protect admin accounts** - Prevent admins from deleting themselves
+6. **Use HTTPS** - Always transmit credentials over secure connections
+
+## Permission Levels
+
+### Cliente (Customer) Permissions
+
+- View and edit own profile
+- Place orders
+- View own order history
+- Submit product reviews
+- Update shipping address
+
+### Admin Permissions
+
+- All cliente permissions
+- View all users
+- Modify user roles
+- Delete user accounts
+- Manage products (create, update, delete)
+- Manage orders (view all, update status)
+- View dashboard statistics
+- Access admin panel
+
+<Note>
+  Admin permissions are enforced at the route level using the `requireAdmin` middleware. No additional role checks are needed in controller logic.
+</Note>
+
+## Automatic Timestamps
+
+The `updated_at` field is automatically updated via database trigger:
+
+```sql
+CREATE TRIGGER update_usuarios_updated_at BEFORE UPDATE ON usuarios
+FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+This ensures accurate tracking of user account modifications.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Dashboard" icon="chart-line" href="/admin/dashboard">
+    View user statistics and growth metrics
+  </Card>
+  <Card title="Order Management" icon="shopping-cart" href="/admin/order-management">
+    View orders placed by users
+  </Card>
+</CardGroup>

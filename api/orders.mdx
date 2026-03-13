@@ -1,0 +1,418 @@
+---
+title: 'Orders'
+description: 'Order management endpoints for authenticated users'
+---
+
+## Create Order
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.blackmichistudio.com/api/client/pedidos \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "producto_id": 123,
+        "cantidad": 2
+      },
+      {
+        "producto_id": 456,
+        "cantidad": 1
+      }
+    ],
+    "direccion_envio": "Av. Libertador 1234, Santiago",
+    "telefono_contacto": "+56912345678",
+    "notas": "Dejar en portería"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/client/pedidos', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    items: [
+      { producto_id: 123, cantidad: 2 },
+      { producto_id: 456, cantidad: 1 }
+    ],
+    direccion_envio: 'Av. Libertador 1234, Santiago',
+    telefono_contacto: '+56912345678',
+    notas: 'Dejar en portería'
+  })
+});
+
+const order = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://api.blackmichistudio.com/api/client/pedidos',
+  headers={'Authorization': f'Bearer {token}'},
+  json={
+    'items': [
+      {'producto_id': 123, 'cantidad': 2},
+      {'producto_id': 456, 'cantidad': 1}
+    ],
+    'direccion_envio': 'Av. Libertador 1234, Santiago',
+    'telefono_contacto': '+56912345678',
+    'notas': 'Dejar en portería'
+  }
+)
+
+order = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/client/pedidos
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Valid JWT token
+</ParamField>
+
+### Request Body
+
+<ParamField body="items" type="array" required>
+  Array of order items
+  <expandable>
+    <ParamField body="producto_id" type="integer" required>
+      Product ID
+    </ParamField>
+    <ParamField body="cantidad" type="integer" required>
+      Quantity to order
+    </ParamField>
+  </expandable>
+</ParamField>
+
+<ParamField body="direccion_envio" type="string" required>
+  Shipping address
+</ParamField>
+
+<ParamField body="telefono_contacto" type="string" required>
+  Contact phone number
+</ParamField>
+
+<ParamField body="notas" type="string">
+  Additional notes for the order
+</ParamField>
+
+### Response
+
+Returns the created order object.
+
+<ResponseField name="id" type="integer">
+  Order unique identifier
+</ResponseField>
+
+<ResponseField name="usuario_id" type="integer">
+  User ID who created the order
+</ResponseField>
+
+<ResponseField name="total" type="number">
+  Total order amount (calculated from product prices)
+</ResponseField>
+
+<ResponseField name="direccion_envio" type="string">
+  Shipping address
+</ResponseField>
+
+<ResponseField name="telefono_contacto" type="string">
+  Contact phone number
+</ResponseField>
+
+<ResponseField name="notas" type="string">
+  Order notes
+</ResponseField>
+
+<ResponseField name="estado" type="string">
+  Order status ("pendiente" for new orders)
+</ResponseField>
+
+<ResponseField name="created_at" type="timestamp">
+  Order creation timestamp
+</ResponseField>
+
+### Automatic Operations
+
+- **Price Calculation**: Total is calculated from current product prices
+- **Stock Validation**: Checks if sufficient stock is available
+- **Stock Deduction**: Automatically reduces product stock when order is created
+
+### Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Invalid data or insufficient stock
+  <expandable>
+    <ResponseField name="error" type="string">
+      Error messages:
+      - "Producto {id} no encontrado"
+      - "Stock insuficiente para {id}"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="401" type="object">
+  Unauthorized - Missing or invalid token
+</ResponseField>
+
+---
+
+## List User Orders
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/client/pedidos \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/client/pedidos', {
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+});
+
+const orders = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.get(
+  'https://api.blackmichistudio.com/api/client/pedidos',
+  headers={'Authorization': f'Bearer {token}'}
+)
+
+orders = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/client/pedidos
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Valid JWT token
+</ParamField>
+
+### Response
+
+Returns an array of the authenticated user's orders with items, ordered by creation date (newest first).
+
+<ResponseField name="orders" type="array">
+  <expandable>
+    <ResponseField name="id" type="integer">
+      Order ID
+    </ResponseField>
+    <ResponseField name="usuario_id" type="integer">
+      User ID
+    </ResponseField>
+    <ResponseField name="total" type="number">
+      Order total amount
+    </ResponseField>
+    <ResponseField name="direccion_envio" type="string">
+      Shipping address
+    </ResponseField>
+    <ResponseField name="telefono_contacto" type="string">
+      Contact phone
+    </ResponseField>
+    <ResponseField name="notas" type="string">
+      Order notes
+    </ResponseField>
+    <ResponseField name="estado" type="string">
+      Order status ("pendiente", "pagado", "cancelado", etc.)
+    </ResponseField>
+    <ResponseField name="created_at" type="timestamp">
+      Order creation date
+    </ResponseField>
+    <ResponseField name="items" type="array">
+      Order items
+      <expandable>
+        <ResponseField name="id" type="integer">
+          Order item ID
+        </ResponseField>
+        <ResponseField name="producto_id" type="integer">
+          Product ID
+        </ResponseField>
+        <ResponseField name="cantidad" type="integer">
+          Quantity ordered
+        </ResponseField>
+        <ResponseField name="precio_unitario" type="number">
+          Unit price at time of order
+        </ResponseField>
+        <ResponseField name="subtotal" type="number">
+          Item subtotal (precio_unitario × cantidad)
+        </ResponseField>
+        <ResponseField name="producto" type="object">
+          Product details
+          <expandable>
+            <ResponseField name="titulo" type="string">
+              Product title
+            </ResponseField>
+            <ResponseField name="imagen_principal" type="string">
+              Product image URL
+            </ResponseField>
+          </expandable>
+        </ResponseField>
+      </expandable>
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Get Order by ID
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/client/pedidos/123 \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const orderId = 123;
+const response = await fetch(`https://api.blackmichistudio.com/api/client/pedidos/${orderId}`, {
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+});
+
+const order = await response.json();
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/client/pedidos/:id
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Valid JWT token (must be order owner)
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Order ID
+</ParamField>
+
+### Response
+
+Returns the order object with items (same structure as list endpoint but for a single order). Includes product descriptions in items.
+
+### Error Responses
+
+<ResponseField name="404" type="object">
+  Order not found or doesn't belong to user
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Pedido no encontrado"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Cancel Order
+
+<CodeGroup>
+```bash cURL
+curl -X PUT https://api.blackmichistudio.com/api/client/pedidos/123/cancelar \
+  -H "Authorization: Bearer <token>"
+```
+
+```javascript JavaScript
+const orderId = 123;
+const response = await fetch(
+  `https://api.blackmichistudio.com/api/client/pedidos/${orderId}/cancelar`,
+  {
+    method: 'PUT',
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  }
+);
+
+const result = await response.json();
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  PUT
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/client/pedidos/:id/cancelar
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  Required - Valid JWT token (must be order owner)
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="id" type="integer" required>
+  Order ID to cancel
+</ParamField>
+
+### Response
+
+<ResponseField name="message" type="string">
+  "Pedido cancelado correctamente"
+</ResponseField>
+
+### Automatic Operations
+
+- **Stock Restoration**: Returns all product quantities back to stock
+- **Status Update**: Changes order status to "cancelado"
+
+### Restrictions
+
+- Only orders with status "pendiente" can be cancelled
+- Users can only cancel their own orders
+
+### Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Order cannot be cancelled
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Solo pedidos pendientes se pueden cancelar"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="404" type="object">
+  Order not found or doesn't belong to user
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Pedido no encontrado"
+    </ResponseField>
+  </expandable>
+</ResponseField>

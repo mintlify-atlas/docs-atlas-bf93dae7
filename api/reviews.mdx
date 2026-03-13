@@ -1,0 +1,285 @@
+---
+title: 'Reviews'
+description: 'Product review and rating endpoints'
+---
+
+## Get Product Reviews
+
+<CodeGroup>
+```bash cURL
+curl https://api.blackmichistudio.com/api/reviews/producto/123
+```
+
+```javascript JavaScript
+const productId = 123;
+const response = await fetch(
+  `https://api.blackmichistudio.com/api/reviews/producto/${productId}`
+);
+const reviews = await response.json();
+```
+
+```python Python
+import requests
+
+product_id = 123
+response = requests.get(
+  f'https://api.blackmichistudio.com/api/reviews/producto/{product_id}'
+)
+reviews = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  GET
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/reviews/producto/:productId
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (public endpoint)
+</ParamField>
+
+### Path Parameters
+
+<ParamField path="productId" type="integer" required>
+  Product ID
+</ParamField>
+
+### Response
+
+Returns an array of reviews for the specified product, ordered by creation date (newest first).
+
+<ResponseField name="reviews" type="array">
+  <expandable>
+    <ResponseField name="id" type="integer">
+      Review unique identifier
+    </ResponseField>
+    <ResponseField name="calificacion" type="integer">
+      Rating (1-5 stars)
+    </ResponseField>
+    <ResponseField name="comentario" type="string">
+      Review comment text
+    </ResponseField>
+    <ResponseField name="created_at" type="timestamp">
+      Review creation timestamp
+    </ResponseField>
+    <ResponseField name="usuario_nombre" type="string">
+      Name of user who wrote the review
+    </ResponseField>
+    <ResponseField name="usuario_email" type="string">
+      Email of user who wrote the review
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+### Example Response
+
+```json
+[
+  {
+    "id": 45,
+    "calificacion": 5,
+    "comentario": "Excelente producto, muy buena calidad!",
+    "created_at": "2024-03-15T10:30:00.000Z",
+    "usuario_nombre": "María González",
+    "usuario_email": "maria@example.com"
+  },
+  {
+    "id": 42,
+    "calificacion": 4,
+    "comentario": "Muy bueno, llegó rápido",
+    "created_at": "2024-03-12T14:20:00.000Z",
+    "usuario_nombre": "Pedro Silva",
+    "usuario_email": "pedro@example.com"
+  }
+]
+```
+
+### Error Responses
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error al cargar reseñas"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Create Review
+
+<CodeGroup>
+```bash cURL
+curl -X POST https://api.blackmichistudio.com/api/reviews \
+  -H "Content-Type: application/json" \
+  -d '{
+    "producto_id": 123,
+    "usuario_id": 456,
+    "calificacion": 5,
+    "comentario": "Excelente producto, muy recomendado!"
+  }'
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.blackmichistudio.com/api/reviews', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    producto_id: 123,
+    usuario_id: 456, // optional
+    calificacion: 5,
+    comentario: 'Excelente producto, muy recomendado!'
+  })
+});
+
+const review = await response.json();
+```
+
+```python Python
+import requests
+
+response = requests.post(
+  'https://api.blackmichistudio.com/api/reviews',
+  json={
+    'producto_id': 123,
+    'usuario_id': 456,
+    'calificacion': 5,
+    'comentario': 'Excelente producto, muy recomendado!'
+  }
+)
+
+review = response.json()
+```
+</CodeGroup>
+
+### Endpoint
+
+<ParamField path="method" type="string">
+  POST
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  /api/reviews
+</ParamField>
+
+<ParamField path="authentication" type="string">
+  None required (allows anonymous reviews)
+</ParamField>
+
+### Request Body
+
+<ParamField body="producto_id" type="integer" required>
+  Product ID being reviewed
+</ParamField>
+
+<ParamField body="calificacion" type="integer" required>
+  Rating from 1 to 5 stars
+</ParamField>
+
+<ParamField body="usuario_id" type="integer">
+  User ID (optional, allows anonymous reviews if null)
+</ParamField>
+
+<ParamField body="comentario" type="string">
+  Review comment text (optional)
+</ParamField>
+
+### Response
+
+<ResponseField name="id" type="integer">
+  Created review ID
+</ResponseField>
+
+<ResponseField name="producto_id" type="integer">
+  Product ID
+</ResponseField>
+
+<ResponseField name="calificacion" type="integer">
+  Rating (1-5)
+</ResponseField>
+
+<ResponseField name="comentario" type="string">
+  Review comment
+</ResponseField>
+
+### Example Response
+
+```json
+{
+  "id": 47,
+  "producto_id": 123,
+  "calificacion": 5,
+  "comentario": "Excelente producto, muy recomendado!"
+}
+```
+
+### Automatic Operations
+
+- **Product Update**: Automatically recalculates and updates the product's:
+  - `total_valoraciones`: Total count of reviews
+  - `promedio_calificacion`: Average rating across all reviews
+
+### Validation Rules
+
+- `producto_id` is required
+- `calificacion` must be between 1 and 5 (inclusive)
+- `comentario` is optional
+- `usuario_id` is optional (allows guest reviews)
+
+### Error Responses
+
+<ResponseField name="400" type="object">
+  Bad Request - Invalid data
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Datos inválidos" - Missing producto_id or calificacion out of range
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+<ResponseField name="500" type="object">
+  Internal Server Error
+  <expandable>
+    <ResponseField name="error" type="string">
+      "Error al guardar la reseña"
+    </ResponseField>
+  </expandable>
+</ResponseField>
+
+---
+
+## Rating System
+
+### Rating Scale
+
+- **1 star**: Poor
+- **2 stars**: Fair
+- **3 stars**: Good
+- **4 stars**: Very Good
+- **5 stars**: Excellent
+
+### Anonymous Reviews
+
+This API allows anonymous reviews by setting `usuario_id` to `null`. This is useful for guest checkout scenarios where users can leave reviews without creating an account.
+
+### Product Rating Updates
+
+When a review is created, the product's rating statistics are automatically updated:
+
+```sql
+UPDATE productos p
+SET 
+  total_valoraciones = (SELECT COUNT(*) FROM valoraciones v WHERE v.producto_id = p.id),
+  promedio_calificacion = (SELECT AVG(calificacion) FROM valoraciones v WHERE v.producto_id = p.id)
+WHERE p.id = $1
+```
+
+This ensures that product listings always show current rating information without requiring additional queries.

@@ -1,0 +1,500 @@
+---
+title: 'Shopping Cart & Checkout'
+description: 'Complete your purchase with the Black Michi Studio checkout process'
+---
+
+# Shopping Cart & Checkout Process
+
+Learn how to review your cart and complete your purchase securely through the checkout process.
+
+## Shopping Cart Overview
+
+Your shopping cart stores selected products before checkout. The cart is accessible from anywhere on the site.
+
+### Accessing Your Cart
+
+**Method 1: Cart Sidebar** (Quick View)
+- Click the shopping cart icon in the header
+- A sidebar opens from the right showing your cart contents
+- Make quick edits without leaving your current page
+
+**Method 2: Full Cart Page** (`/cart`)
+- Navigate to the dedicated cart page for a full-screen view
+- Ideal for reviewing larger orders
+
+### Cart Display
+
+Your cart shows:
+- **Cart Icon Badge**: Number of items in your cart (visible in header)
+- **Product List**: All items with images, names, and prices
+- **Quantity Controls**: Adjust quantities for each item
+- **Unit Price**: Price per individual item
+- **Subtotal**: Price × quantity for each item
+- **Cart Total**: Total amount for all items
+- **Item Count**: Total number of products in cart
+
+<Note>
+  The cart is stored in your browser's local storage. Your items will persist across sessions until you clear them or complete a purchase.
+</Note>
+
+## Managing Cart Items
+
+### Updating Quantities
+
+<Steps>
+  <Step title="Locate Product">
+    Find the item you want to update in your cart
+  </Step>
+  
+  <Step title="Adjust Quantity">
+    Use the quantity controls:
+    - Click **+** to increase quantity
+    - Click **-** to decrease quantity
+    - Minimum quantity is 1
+    - Maximum is limited by available stock
+  </Step>
+  
+  <Step title="See Updated Total">
+    The subtotal and cart total update automatically
+  </Step>
+</Steps>
+
+### Removing Items
+
+**Remove Single Item:**
+- Click the **"Quitar"** (Remove) button or trash icon next to the item
+- The item is immediately removed from your cart
+- Totals update automatically
+
+**Clear Entire Cart:**
+- Click **"Vaciar carrito"** (Empty cart) at the bottom of the cart
+- All items are removed at once
+- Confirmation is immediate
+
+<Warning>
+  Removing items cannot be undone. You'll need to add them back to your cart if removed accidentally.
+</Warning>
+
+## Proceeding to Checkout
+
+When you're ready to complete your purchase:
+
+<Steps>
+  <Step title="Review Cart">
+    Ensure all items and quantities are correct in your cart
+  </Step>
+  
+  <Step title="Click Checkout">
+    Click the **"Ir a pagar"** (Go to checkout) button in the cart sidebar or cart page
+  </Step>
+  
+  <Step title="Navigate to Checkout">
+    You'll be redirected to `/checkout` to complete your purchase
+  </Step>
+</Steps>
+
+<Note>
+  The checkout button is disabled if your cart is empty.
+</Note>
+
+## Checkout Page
+
+The checkout page (`/checkout`) is where you provide shipping information and complete payment.
+
+### Checkout Page Layout
+
+The page is divided into two main sections:
+
+**Left Column: Information Forms** (Steps 1-2)
+- Contact Information
+- Shipping Address
+
+**Right Column: Order Summary**
+- Product list with prices
+- Subtotal
+- Shipping cost
+- Total amount
+- Payment button
+
+### Step 1: Contact Information
+
+<Steps>
+  <Step title="Full Name">
+    Enter your complete name (first and last name required)
+    
+    **Validation:**
+    - Must contain only letters and spaces
+    - Must include at least 2 words (first and last name)
+    - Special characters are automatically filtered
+  </Step>
+  
+  <Step title="Email Address">
+    Provide a valid email address for order confirmation
+    
+    **Validation:**
+    - Must be a valid email format (e.g., user@example.com)
+    - Used to send order confirmation and updates
+  </Step>
+  
+  <Step title="Phone Number">
+    Enter your Chilean phone number
+    
+    **Format:** +56 9 XXXX XXXX
+    - Automatically formatted as you type
+    - Must be a valid Chilean mobile number (+569 followed by 8 digits)
+  </Step>
+</Steps>
+
+<Tip>
+  All contact fields are validated in real-time. Error messages appear below each field if the input is invalid.
+</Tip>
+
+### Step 2: Shipping Address
+
+<Steps>
+  <Step title="Complete Address">
+    Enter your full delivery address
+    
+    **Required Information:**
+    - Street name and number
+    - Apartment/unit number (if applicable)
+    - Comuna (district)
+    - City
+    
+    **Minimum Length:** 10 characters for specificity
+    
+    **Example:** Calle Example 123, Depto 4B, Comuna, Ciudad
+  </Step>
+  
+  <Step title="Additional Notes (Optional)">
+    Add special instructions for your order:
+    - Preferred color options
+    - Delivery instructions
+    - Customization requests
+    - Any other relevant information
+  </Step>
+</Steps>
+
+### Order Summary (Right Column)
+
+**Product List:**
+Shows each item with:
+- Product title
+- Quantity
+- Unit price
+- Subtotal per item
+
+**Cost Breakdown:**
+```
+Subtotal:    CLP XX,XXX
+Envío:       CLP 3,500
+─────────────────────
+Total:       CLP XX,XXX
+```
+
+<Note>
+  **Standard Shipping Cost**: CLP 3,500 is added to all orders
+</Note>
+
+### Form Validation
+
+The checkout form validates all fields before allowing payment:
+
+**Real-time Validation:**
+- Fields highlight in red if invalid
+- Error messages appear below problematic fields
+- Specific guidance provided for each error
+
+**Common Validation Errors:**
+- "El nombre solo debe contener letras y espacios" - Name contains invalid characters
+- "Ingresa nombre y apellido" - Only one name provided
+- "Ingresa un correo electrónico válido" - Invalid email format
+- "Ingresa un número chileno válido" - Phone number format incorrect
+- "La dirección debe ser más específica" - Address too short
+
+**Submission Requirements:**
+- All required fields must be filled
+- All fields must pass validation
+- No validation errors present
+
+The **"Pagar con Flow"** button is disabled until all requirements are met.
+
+## Payment Process
+
+Black Michi Studio uses Flow for secure payment processing.
+
+### Initiating Payment
+
+<Steps>
+  <Step title="Complete Form">
+    Ensure all checkout fields are correctly filled and validated
+  </Step>
+  
+  <Step title="Review Order">
+    Double-check your order summary:
+    - Products and quantities
+    - Total amount
+    - Shipping address
+  </Step>
+  
+  <Step title="Click Payment Button">
+    Click **"Pagar con Flow"** (Pay with Flow)
+    
+    The button shows a loading spinner with "Procesando..." while creating the payment
+  </Step>
+  
+  <Step title="Order Creation">
+    The system:
+    - Creates a new order (pedido) with status **"pendiente"** (pending)
+    - Validates product availability and stock
+    - Generates a unique order ID (commerce_order)
+    - Links to your account if you're logged in
+    - Stores all order details
+  </Step>
+  
+  <Step title="Redirect to Flow">
+    You're automatically redirected to Flow's secure payment gateway
+    
+    A pending order record is saved to localStorage for tracking
+  </Step>
+</Steps>
+
+<Warning>
+  **Do not close the browser** during payment processing or you may lose your order reference.
+</Warning>
+
+### Flow Payment Gateway
+
+On the Flow payment page:
+
+1. **Review Order**: See your order details and total amount
+2. **Choose Payment Method**: Select from available payment options (credit card, debit card, etc.)
+3. **Enter Payment Details**: Provide your payment information securely
+4. **Confirm Payment**: Complete the transaction
+
+<Note>
+  Flow handles all payment processing securely. Black Michi Studio never stores your payment card details.
+</Note>
+
+### Payment Status Codes
+
+Flow returns one of four statuses:
+
+| Status Code | Internal Status | Description |
+|-------------|----------------|-------------|
+| 1 | `pendiente` | Payment is being processed |
+| 2 | `pagado` | Payment successful |
+| 3 | `rechazado` | Payment rejected |
+| 4 | `cancelado` | Payment cancelled by user |
+
+## After Payment
+
+### Return to Store
+
+After completing or cancelling payment, Flow redirects you back to the store at `/payment/return`.
+
+### Payment Result Page
+
+The payment result page displays different screens based on the outcome:
+
+#### ✅ Payment Successful (`estado: pagado`)
+
+**You'll see:**
+- Green success message: "¡Pago exitoso!"
+- Your order number (Pedido #XX)
+- Confirmation that an email was sent to your registered address
+- **"Volver a la tienda"** (Return to store) button
+
+**What Happens:**
+- Your cart is automatically cleared
+- Order status changes to **"pagado"**
+- Stock is deducted for purchased products
+- Payment details are recorded
+- `fecha_pago` (payment date) is set
+- Order confirmation email is sent
+
+<Success>
+  Your order is confirmed! You'll receive tracking information via email once it ships.
+</Success>
+
+#### ⏳ Payment Pending (`estado: pendiente`)
+
+**You'll see:**
+- Yellow pending message: "Pago pendiente"
+- Information that payment is being processed
+- Note that you'll be notified by email
+- **"Volver a la tienda"** button
+
+**What This Means:**
+- Payment is still processing
+- Order remains in pending status
+- You'll receive email notification once confirmed
+
+#### ❌ Payment Rejected (`estado: rechazado`)
+
+**You'll see:**
+- Red error message: "Pago rechazado"
+- Explanation that payment couldn't be processed
+- **"Reintentar"** (Retry) button to try payment again
+- **"Volver"** (Go back) button to return home
+
+**What to Do:**
+- Verify your payment details
+- Check with your bank if needed
+- Try payment again or use a different method
+- Your cart items remain available
+
+#### ⚠️ Payment Error
+
+**You'll see:**
+- Red error message: "Error en el pago"
+- General error information
+- **"Reintentar"** button
+
+**Possible Causes:**
+- Connection issues
+- Server error
+- Invalid payment token
+- Missing order information
+
+<Warning>
+  If you encounter repeated payment errors, please contact customer support with your order ID.
+</Warning>
+
+## Stock Management During Checkout
+
+The system validates stock at multiple points:
+
+### Pre-Payment Validation
+
+Before creating the Flow payment:
+
+<Steps>
+  <Step title="Product Availability Check">
+    System verifies all products in cart still exist and are active
+  </Step>
+  
+  <Step title="Stock Verification">
+    Confirms sufficient stock for requested quantities
+  </Step>
+  
+  <Step title="Error Handling">
+    If validation fails:
+    - Transaction is rolled back
+    - Error message displays which products are unavailable
+    - You can remove unavailable items and try again
+  </Step>
+</Steps>
+
+### Post-Payment Stock Deduction
+
+After successful payment (status = 2):
+
+- Stock is automatically deducted from products
+- Each product's stock count is reduced by the ordered quantity
+- `updated_at` timestamp is updated
+- If stock becomes insufficient after payment (rare edge case), a warning is logged
+
+<Note>
+  Stock is reserved only after confirmed payment, not at cart addition. This ensures accurate inventory and prevents overselling.
+</Note>
+
+## Order Confirmation Email
+
+After successful payment, you'll receive an email containing:
+
+- Order number and confirmation
+- Items purchased with quantities and prices
+- Shipping address
+- Total amount paid
+- Estimated delivery timeframe (3-5 días)
+- Contact information for support
+
+<Tip>
+  **Didn't receive your email?** Check your spam folder or contact support with your order number.
+</Tip>
+
+## Security Features
+
+**🔒 Secure Payment:**
+- All payments processed through Flow's PCI-compliant gateway
+- SSL encryption for data transmission
+- No card details stored on our servers
+
+**🛡️ Order Protection:**
+- Unique order IDs prevent duplication
+- Transaction logging for audit trails
+- Webhook verification for payment confirmation
+
+**✅ Data Validation:**
+- Server-side validation of all inputs
+- Stock verification before and during checkout
+- CSRF protection on forms
+
+## Guest vs Registered Checkout
+
+### Guest Checkout
+- No account required
+- Enter contact information each time
+- Order email sent to provided address
+- Limited order tracking (via email links)
+
+### Registered User Checkout
+- Pre-filled contact information
+- Saved shipping addresses
+- Order history in account dashboard
+- Easy reordering of past purchases
+- Order tracking via account panel
+
+<Tip>
+  [Create an account](/user-guide/account-management) for faster checkout and better order management!
+</Tip>
+
+## Troubleshooting Common Issues
+
+### "Stock insuficiente" Error
+
+**Problem:** Not enough stock for your requested quantity
+
+**Solution:**
+- Reduce quantity for affected items
+- Remove out-of-stock items from cart
+- Try again with updated quantities
+
+### Payment Not Processing
+
+**Problem:** Payment appears stuck or doesn't redirect
+
+**Solutions:**
+- Check your internet connection
+- Ensure pop-ups are not blocked
+- Try a different browser
+- Clear browser cache and cookies
+- Contact support if issue persists
+
+### Email Not Received
+
+**Problem:** No confirmation email after successful payment
+
+**Solutions:**
+- Wait 10-15 minutes (emails may be delayed)
+- Check spam/junk folder
+- Verify email address was entered correctly
+- Contact support with order number
+
+### Validation Errors
+
+**Problem:** Cannot proceed due to form errors
+
+**Solutions:**
+- Read error messages carefully
+- Ensure all required fields are filled
+- Check format requirements (email, phone)
+- Clear field and re-enter if validation seems stuck
+
+## Next Steps
+
+After completing your purchase:
+- Learn how to [Track Your Orders](/user-guide/order-tracking)
+- Set up [Account Management](/user-guide/account-management) for easier future orders
+- Contact support if you need to modify your order

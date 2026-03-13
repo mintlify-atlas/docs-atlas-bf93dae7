@@ -1,0 +1,394 @@
+---
+title: Product Catalog
+description: Comprehensive product catalog system with categories, images, and inventory management
+---
+
+The Black Michi Studio product catalog is a full-featured system for managing and displaying 3D-printed products, with support for multiple images, categories, and real-time inventory tracking.
+
+## Overview
+
+The product catalog enables customers to browse products by category, view detailed product information, and see real-time stock availability. Administrators can manage products with a complete CRUD interface.
+
+<Card title="Key Features" icon="sparkles">
+  - Multi-category product organization
+  - Multiple product images with gallery
+  - Real-time stock tracking
+  - Price management with discounts
+  - Product slugs for SEO-friendly URLs
+  - Featured products support
+  - Active/inactive product states
+</Card>
+
+## Database Schema
+
+The product catalog uses three main tables: `productos`, `categorias`, and `featured_productos`.
+
+### Products Table
+
+```sql
+CREATE TABLE IF NOT EXISTS productos (
+  id SERIAL PRIMARY KEY,
+  titulo VARCHAR(200) NOT NULL,
+  slug VARCHAR(200) UNIQUE,
+  precio DECIMAL(10,2) NOT NULL,
+  precio_anterior DECIMAL(10,2),
+  descripcion TEXT,
+  descuento_porcentaje DECIMAL(5,2),
+  imagen_principal VARCHAR(500) NOT NULL,
+  imagenes_adicionales TEXT[],
+  categoria_id INTEGER REFERENCES categorias(id),
+  moneda VARCHAR(10) DEFAULT 'CLP',
+  destacado BOOLEAN DEFAULT false,
+  stock INTEGER DEFAULT 5,
+  activo BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Categories Table
+
+```sql
+CREATE TABLE IF NOT EXISTS categorias (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  descripcion TEXT,
+  icono VARCHAR(10),
+  color_fondo VARCHAR(20),
+  color_icono VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+<Note>
+  Categories support custom icons (emoji), background colors, and icon colors for rich visual presentation in the UI.
+</Note>
+
+### Featured Products
+
+```sql
+CREATE TABLE featured_productos (
+  id SERIAL PRIMARY KEY,
+  producto_id INT NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+  position INT NOT NULL CHECK (position BETWEEN 1 AND 3),
+  UNIQUE(position),
+  UNIQUE(producto_id)
+);
+```
+
+## User Features
+
+### Browsing Products
+
+Customers can browse products through multiple views:
+
+- **Home page** - Featured products and latest additions
+- **Category pages** - Products filtered by category
+- **Product detail** - Full product information with image gallery
+
+### Product Display
+
+Each product shows:
+
+- Product title and category badge
+- Image gallery with zoom capability
+- Current price and previous price (if discounted)
+- Discount percentage badge
+- Stock availability indicator
+- Product description
+- Related products from the same category
+
+<Tip>
+  The product detail page includes an image zoom feature that activates on hover, allowing customers to see fine details of 3D-printed items.
+</Tip>
+
+### Image Gallery
+
+Products support multiple images:
+
+```jsx
+// From ProductDetail.jsx
+const rawImages = [];
+if (product.imagen_principal) {
+  rawImages.push(product.imagen_principal);
+}
+if (product.imagenes_adicionales && Array.isArray(product.imagenes_adicionales)) {
+  rawImages.push(...product.imagenes_adicionales);
+}
+
+const images = rawImages.map(img => getImageUrl(img)).filter(Boolean);
+```
+
+The gallery includes:
+- Full-size main image with zoom
+- Thumbnail navigation
+- Previous/next buttons
+- Image counter (e.g., "1 / 5")
+
+## Technical Implementation
+
+### Backend API Endpoints
+
+#### Get All Products
+
+```javascript
+// GET /api/productos
+exports.getAllProducts = async (req, res) => {
+  const result = await pool.query(`
+    SELECT p.*, c.nombre categoria_nombre
+    FROM productos p
+    LEFT JOIN categorias c
+    ON p.categoria_id = c.id
+    WHERE p.activo = true
+    ORDER BY p.created_at DESC
+  `);
+  
+  res.json(result.rows);
+};
+```
+
+<Note>
+  The API includes a 5-minute cache to improve performance for frequently accessed product lists.
+</Note>
+
+#### Get Product by ID
+
+```javascript
+// GET /api/productos/:id
+exports.getProductById = async (req, res) => {
+  const result = await pool.query(
+    `SELECT p.*, c.nombre categoria_nombre
+     FROM productos p
+     LEFT JOIN categorias c ON p.categoria_id = c.id
+     WHERE p.id = $1`,
+    [id]
+  );
+  
+  res.json(result.rows[0]);
+};
+```
+
+### Admin Features
+
+Administrators have full control over the product catalog:
+
+#### Create Product
+
+```javascript
+// POST /api/productos (requires admin auth)
+exports.createProduct = async (req, res) => {
+  const { nombre, precio, stock, categoria, descripcion } = req.body;
+  
+  // Upload images to Supabase Storage
+  let imagenPrincipal = null;
+  let imagenesAdicionales = [];
+  
+  if (req.files?.length) {
+    const productSlug = nombre.toLowerCase().replace(/\s+/g, "-");
+    
+    const main = await supabaseService.uploadProductImage(
+      req.files[0].buffer,
+      productSlug
+    );
+    
+    imagenPrincipal = main.images.card;
+    
+    if (req.files.length > 1) {
+      const uploads = await Promise.all(
+        req.files.slice(1).map(file =>
+          supabaseService.uploadProductImage(file.buffer, productSlug)
+        )
+      );
+      imagenesAdicionales = uploads.map(u => u.images.card);
+    }
+  }
+  
+  // Insert product into database
+  await pool.query(
+    `INSERT INTO productos
+    (titulo, slug, precio, descripcion, imagen_principal, 
+     imagenes_adicionales, categoria_id, stock, activo)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true)`,
+    [nombre, slug, precio, descripcion, imagenPrincipal, 
+     imagenesAdicionales, categoriaId, stock]
+  );
+};
+```
+
+<Tip>
+  Product images are uploaded to Supabase Storage, providing reliable CDN-backed image hosting with automatic optimization.
+</Tip>
+
+#### Update Product
+
+```javascript
+// PUT /api/productos/:id (requires admin auth)
+exports.updateProduct = async (req, res) => {
+  const { id } = req.params;
+  const { titulo, precio, stock, categoria, descripcion } = req.body;
+  
+  // Handle new image uploads if provided
+  // Update database record
+  
+  await pool.query(
+    `UPDATE productos
+     SET titulo=$1, slug=$2, precio=$3, descripcion=$4,
+         imagen_principal=$5, imagenes_adicionales=$6,
+         categoria_id=$7, stock=$8, updated_at=NOW()
+     WHERE id=$9`,
+    [titulo, slug, precio, descripcion, imagenPrincipal,
+     imagenesAdicionales, categoriaId, stock, id]
+  );
+};
+```
+
+#### Delete Product
+
+```javascript
+// DELETE /api/productos/:id (requires admin auth)
+exports.deleteProduct = async (req, res) => {
+  const { id } = req.params;
+  await pool.query("DELETE FROM productos WHERE id=$1", [id]);
+};
+```
+
+### Category Management
+
+Categories are automatically created or retrieved when managing products:
+
+```javascript
+if (categoria) {
+  const result = await pool.query(
+    `INSERT INTO categorias(nombre)
+     VALUES($1)
+     ON CONFLICT(nombre)
+     DO UPDATE SET nombre = EXCLUDED.nombre
+     RETURNING id`,
+    [categoria]
+  );
+  
+  categoriaId = result.rows[0].id;
+}
+```
+
+Example categories:
+
+- **vasos3d** - Personalized 3D cups (🥤)
+- **navi** - Navi decorative plates (🏠)
+- **figuras** - Collectible 3D figures (🎭)
+
+## Stock Management
+
+Stock is tracked in real-time and automatically decremented when payments are confirmed:
+
+```javascript
+// From payments.js - when payment status = 2 (confirmed)
+if (payment.status === 2) {
+  const itemsResult = await db.query(
+    `SELECT producto_id, cantidad FROM pedido_items WHERE pedido_id = $1`,
+    [pedido.id]
+  );
+  
+  for (const item of itemsResult.rows) {
+    await db.query(
+      `UPDATE productos 
+       SET stock = stock - $1, updated_at = NOW() 
+       WHERE id = $2 AND stock >= $3`,
+      [item.cantidad, item.producto_id, item.cantidad]
+    );
+  }
+}
+```
+
+<Note>
+  Stock updates are protected by a `stock >= cantidad` condition to prevent negative inventory.
+</Note>
+
+## Frontend Integration
+
+### Product Card Component
+
+Products are displayed using a card layout that shows:
+
+```jsx
+<div className="product-card">
+  <img src={product.imagen_principal} alt={product.titulo} />
+  <h3>{product.titulo}</h3>
+  <div className="category-badge">{product.categoria_nombre}</div>
+  <div className="price">{formatPrice(product.precio)}</div>
+  {product.precio_anterior && (
+    <div className="discount">
+      <span className="old-price">{formatPrice(product.precio_anterior)}</span>
+      <span className="discount-badge">{product.descuento_porcentaje}% OFF</span>
+    </div>
+  )}
+  <div className="stock">
+    {product.stock > 0 ? '✓ En stock' : '✗ Agotado'}
+  </div>
+</div>
+```
+
+### Stock Validation
+
+Before adding to cart, the system checks stock availability:
+
+```jsx
+const { addToCart, isStockExceeded } = useCart();
+
+<button
+  onClick={() => {
+    if (!isStockExceeded(product)) {
+      addToCart({
+        id: product.id,
+        titulo: product.titulo,
+        precio: product.precio,
+        imagen: getImageUrl(product.imagen_principal),
+        stock: product.stock,
+      });
+    }
+  }}
+  disabled={isStockExceeded(product)}
+>
+  {isStockExceeded(product) ? "Sin stock disponible" : "Agregar al carrito"}
+</button>
+```
+
+## Cache Strategy
+
+The product catalog implements a simple TTL-based cache:
+
+```javascript
+const cache = {
+  products: null,
+  timestamp: 0,
+  ttl: 5 * 60 * 1000  // 5 minutes
+};
+
+const invalidateCache = () => {
+  cache.products = null;
+  cache.timestamp = 0;
+};
+```
+
+Cache is invalidated when:
+- Products are created
+- Products are updated
+- Products are deleted
+
+<Tip>
+  For high-traffic sites, consider implementing Redis or a more sophisticated caching strategy.
+</Tip>
+
+## Best Practices
+
+1. **Always validate stock** before allowing purchases
+2. **Use transactions** when updating stock to prevent race conditions
+3. **Optimize images** before uploading to reduce bandwidth
+4. **Generate SEO-friendly slugs** from product titles
+5. **Keep categoria names consistent** to avoid duplicate categories
+6. **Set products to inactive** instead of deleting to preserve order history
+
+## Related Features
+
+- [Payment Integration](/features/payment-integration) - How products are purchased
+- [Reviews & Ratings](/features/reviews-ratings) - Customer feedback on products

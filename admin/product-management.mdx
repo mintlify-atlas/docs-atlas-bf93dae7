@@ -1,0 +1,399 @@
+---
+title: 'Product Management'
+description: 'Managing products, categories, and inventory in the admin panel'
+---
+
+Manage your product catalog including creating, updating, and deleting products with images and category assignments.
+
+## Overview
+
+The product management system allows admins to perform full CRUD operations on the product catalog. All product endpoints require admin authentication.
+
+<Warning>
+  All product management operations require:
+  - Valid JWT authentication token
+  - User role must be `admin`
+  - Both `requireAuth` and `requireAdmin` middleware
+</Warning>
+
+## Product Schema
+
+Products are stored in the `productos` table with the following structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | SERIAL | Primary key |
+| `titulo` | VARCHAR(200) | Product name |
+| `slug` | VARCHAR(200) | URL-friendly identifier |
+| `precio` | DECIMAL(10,2) | Current price |
+| `precio_anterior` | DECIMAL(10,2) | Original price (for discounts) |
+| `descripcion` | TEXT | Product description |
+| `descuento_porcentaje` | DECIMAL(5,2) | Discount percentage |
+| `imagen_principal` | VARCHAR(500) | Main product image URL |
+| `imagenes_adicionales` | TEXT[] | Array of additional image URLs |
+| `categoria_id` | INTEGER | Foreign key to categorias table |
+| `moneda` | VARCHAR(10) | Currency code (default: CLP) |
+| `destacado` | BOOLEAN | Featured product flag |
+| `stock` | INTEGER | Available inventory |
+| `activo` | BOOLEAN | Product active status |
+| `created_at` | TIMESTAMP | Creation timestamp |
+| `updated_at` | TIMESTAMP | Last update timestamp |
+
+## Managing Products
+
+### Viewing All Products
+
+<Steps>
+  <Step title="Fetch product list">
+    Call `GET /admin/productos` to retrieve all products with category information.
+
+    ```javascript
+    const { data } = await api.get("/admin/productos");
+    ```
+  </Step>
+
+  <Step title="Display products">
+    Products are returned with joined category names from the `categorias` table.
+
+    ```json
+    [
+      {
+        "id": 1,
+        "titulo": "Vaso 3D Verde",
+        "slug": "vaso-3d-verde",
+        "precio": 3990,
+        "precio_anterior": 4990,
+        "descripcion": "Vaso 3D personalizado en color verde",
+        "descuento_porcentaje": 20.0,
+        "imagen_principal": "/images/products/vasos3d/green-glass.webp",
+        "categoria_id": 1,
+        "categoria_nombre": "vasos3d",
+        "stock": 50,
+        "activo": true,
+        "destacado": true
+      }
+    ]
+    ```
+  </Step>
+</Steps>
+
+Implemented in `backend/controllers/adminController.js:7-21`:
+
+```javascript
+exports.getAllProducts = async (req, res) => {
+    const result = await pool.query(`
+        SELECT p.*, c.nombre AS categoria_nombre
+        FROM productos p
+        LEFT JOIN categorias c ON p.categoria_id = c.id
+        ORDER BY p.created_at DESC
+    `);
+    res.json(result.rows);
+};
+```
+
+### Creating Products
+
+<Steps>
+  <Step title="Prepare product data">
+    Create a FormData object with product details and images.
+
+    ```javascript
+    const formData = new FormData();
+    formData.append("titulo", "New Product");
+    formData.append("precio", "15990");
+    formData.append("descripcion", "Product description");
+    formData.append("categoria_id", "1");
+    formData.append("stock", "30");
+    
+    // Add up to 5 images
+    imageFiles.forEach(file => {
+      formData.append("imagenes", file);
+    });
+    ```
+  </Step>
+
+  <Step title="Submit to API">
+    Post the form data to create the product.
+
+    ```javascript
+    const { data } = await api.post("/admin/productos", formData, {
+      headers: { "Content-Type": "multipart/form-data" }
+    });
+    ```
+  </Step>
+
+  <Step title="Handle response">
+    The API returns the newly created product with generated ID and slug.
+  </Step>
+</Steps>
+
+Endpoint definition in `backend/routes/admin.js:23-29`:
+
+```javascript
+router.post(
+  "/productos",
+  requireAuth,
+  requireAdmin,
+  upload.array("imagenes", 5),
+  productosController.createProduct
+);
+```
+
+<Note>
+  The `upload.array("imagenes", 5)` middleware limits uploads to 5 images per product.
+</Note>
+
+### Updating Products
+
+<Steps>
+  <Step title="Get product ID">
+    Identify the product you want to update.
+
+    ```javascript
+    const productId = 1;
+    ```
+  </Step>
+
+  <Step title="Prepare update data">
+    Create FormData with fields to update. Only include changed fields.
+
+    ```javascript
+    const formData = new FormData();
+    formData.append("precio", "12990");
+    formData.append("stock", "45");
+    formData.append("activo", "true");
+    ```
+  </Step>
+
+  <Step title="Submit update">
+    Send PUT request to update the product.
+
+    ```javascript
+    const { data } = await api.put(
+      `/admin/productos/${productId}`,
+      formData
+    );
+    ```
+  </Step>
+
+  <Step title="Update local state">
+    Refresh the product list or update local state optimistically.
+
+    ```javascript
+    setProducts(prev =>
+      prev.map(p => p.id === productId ? { ...p, ...data } : p)
+    );
+    ```
+  </Step>
+</Steps>
+
+Implemented in `frontend/src/admin/hooks/useProducts.js:40-55`.
+
+### Deleting Products
+
+<Warning>
+  Deleting a product is permanent and cannot be undone. This will remove the product from the catalog and may affect order history if items reference this product.
+</Warning>
+
+<Steps>
+  <Step title="Confirm deletion">
+    Always show a confirmation dialog before deleting.
+
+    ```javascript
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this product?"
+    );
+    if (!confirmDelete) return;
+    ```
+  </Step>
+
+  <Step title="Call delete endpoint">
+    Send DELETE request with product ID.
+
+    ```javascript
+    await api.delete(`/admin/productos/${productId}`);
+    ```
+  </Step>
+
+  <Step title="Refresh product list">
+    Reload products from the server to ensure consistency.
+
+    ```javascript
+    await fetchProducts();
+    ```
+  </Step>
+</Steps>
+
+Endpoint definition in `backend/routes/admin.js:39-44`:
+
+```javascript
+router.delete(
+  "/productos/:id",
+  requireAuth,
+  requireAdmin,
+  productosController.deleteProduct
+);
+```
+
+## Categories
+
+Products must be assigned to categories from the `categorias` table.
+
+### Available Categories
+
+The default categories are defined in `backend/schema.sql:218-222`:
+
+| Name | Icon | Description |
+|------|------|-------------|
+| `vasos3d` | 🥤 | Vasos personalizados en 3D |
+| `navi` | 🏠 | Placas decorativas Navi |
+| `figuras` | 🎭 | Figuras coleccionables 3D |
+
+### Category Schema
+
+```sql
+CREATE TABLE categorias (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL UNIQUE,
+  descripcion TEXT,
+  icono VARCHAR(10),
+  color_fondo VARCHAR(20),
+  color_icono VARCHAR(20),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+## Using the useProducts Hook
+
+The frontend provides a convenient React hook for product management:
+
+```javascript
+import useProducts from "../hooks/useProducts";
+
+function ProductManagement() {
+  const {
+    products,
+    loading,
+    fetchProducts,
+    getProductById,
+    createProduct,
+    updateProduct,
+    deleteProduct
+  } = useProducts();
+
+  // Use the hook methods
+}
+```
+
+### Hook API
+
+| Method | Parameters | Description |
+|--------|------------|-------------|
+| `products` | - | Array of all products |
+| `loading` | - | Boolean loading state |
+| `fetchProducts` | - | Refresh product list |
+| `getProductById` | `id` | Get single product by ID |
+| `createProduct` | `productData` | Create new product |
+| `updateProduct` | `id, productData` | Update existing product |
+| `deleteProduct` | `id` | Delete product |
+
+Implemented in `frontend/src/admin/hooks/useProducts.js`.
+
+## API Endpoints Summary
+
+### GET /admin/productos
+
+Retrieve all products with category information.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "titulo": "Product Name",
+    "precio": 15990,
+    "categoria_nombre": "vasos3d",
+    "stock": 30
+  }
+]
+```
+
+### POST /admin/productos
+
+Create a new product with images.
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**Body:**
+- `titulo` - Product name (required)
+- `precio` - Price (required)
+- `descripcion` - Description
+- `categoria_id` - Category ID (required)
+- `stock` - Inventory count
+- `imagenes` - Image files (max 5)
+
+**Response:** `201 Created`
+
+### PUT /admin/productos/:id
+
+Update an existing product.
+
+**Parameters:**
+- `id` - Product ID
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+Content-Type: multipart/form-data
+```
+
+**Response:** `200 OK`
+
+### DELETE /admin/productos/:id
+
+<Warning>
+  Permanently delete a product. This action cannot be undone.
+</Warning>
+
+**Parameters:**
+- `id` - Product ID
+
+**Headers:**
+```
+Authorization: Bearer <jwt_token>
+```
+
+**Response:** `200 OK`
+
+## Best Practices
+
+1. **Always validate data** before submitting product forms
+2. **Use optimistic updates** for better UX, but handle errors gracefully
+3. **Confirm destructive actions** like product deletion
+4. **Compress images** before uploading to reduce storage costs
+5. **Set proper stock levels** to avoid overselling
+6. **Use featured flag** strategically for homepage displays
+
+<Note>
+  The `updated_at` timestamp is automatically updated via database trigger when any product field changes.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Order Management" icon="shopping-cart" href="/admin/order-management">
+    Process and fulfill customer orders
+  </Card>
+  <Card title="Dashboard" icon="chart-line" href="/admin/dashboard">
+    View overall store statistics
+  </Card>
+</CardGroup>
